@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "cursor-context-mcp": {
+      "command": "python",
+      "args": ["official_mcp_server.py"],
+      "cwd": ".",
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }
+  }
+}

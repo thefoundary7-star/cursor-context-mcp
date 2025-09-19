@@ -1,0 +1,263 @@
+{
+  "config_version": "2.0.0",
+  "profile": "production",
+  "server": {
+    "name": "Cursor Context MCP Server",
+    "version": "2.0.0",
+    "max_file_size": 104857600,
+    "allowed_extensions": [],
+    "blocked_extensions": [".exe", ".dll", ".so", ".dylib", ".bin"],
+    "max_directory_depth": 10,
+    "enable_caching": true,
+    "cache_ttl": 300,
+    "enable_compression": true,
+    "max_concurrent_operations": 20,
+    "operation_timeout": 30
+  },
+  "logging": {
+    "level": "WARNING",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "logs/mcp_server.log",
+    "max_size": 52428800,
+    "backup_count": 10,
+    "console_output": false,
+    "structured_logging": true
+  },
+  "security": {
+    "allowed_paths": [],
+    "blocked_paths": [
+      "/etc",
+      "/sys",
+      "/proc",
+      "C:\\Windows\\System32",
+      "C:\\Windows\\SysWOW64"
+    ],
+    "enable_path_validation": true,
+    "enable_audit_logging": true,
+    "max_path_length": 4096,
+    "enable_file_scanning": true,
+    "scan_timeout": 30
+  },
+  "saas": {
+    "enabled": true,
+    "api_endpoint": "https://api.cursor-context.com",
+    "api_key": "production-api-key-here",
+    "user_id": "production-user-id",
+    "session_id": "production-session-id",
+    "enable_analytics": true,
+    "enable_telemetry": true,
+    "offline_mode": false,
+    "sync_interval": 300,
+    "max_retry_attempts": 5,
+    "retry_backoff_factor": 2.0,
+    "http_client": {
+      "timeout": 30,
+      "max_retries": 5,
+      "retry_delay": 1.0,
+      "retry_backoff_factor": 2.0,
+      "max_retry_delay": 120.0,
+      "offline_grace_period": 600,
+      "enable_caching": true,
+      "cache_ttl": 600,
+      "verify_ssl": true,
+      "user_agent": "Cursor-Context-MCP-Server/2.0.0",
+      "connection_pool_size": 20,
+      "keepalive_timeout": 30
+    },
+    "endpoints": {
+      "auth": "/api/auth",
+      "analytics": "/api/analytics",
+      "license": "/api/license",
+      "usage": "/api/usage",
+      "health": "/api/health"
+    },
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 100,
+      "burst_limit": 20
+    }
+  },
+  "license": {
+    "enabled": true,
+    "license_key": "production-license-key-here",
+    "validation_interval": 86400,
+    "offline_grace_period": 7200,
+    "validation_timeout": 30,
+    "retry_attempts": 5,
+    "cache_validation": true,
+    "device_fingerprint": {
+      "enabled": true,
+      "include_hardware": true,
+      "include_software": true,
+      "include_network": false,
+      "include_user_agent": true
+    },
+    "tiers": {
+      "free": {
+        "max_file_size": 1048576,
+        "max_operations_per_hour": 100,
+        "max_concurrent_sessions": 1,
+        "features": ["basic_file_ops", "basic_stats"],
+        "rate_limits": {
+          "requests_per_minute": 10,
+          "burst_limit": 5
+        }
+      },
+      "pro": {
+        "max_file_size": 10485760,
+        "max_operations_per_hour": 1000,
+        "max_concurrent_sessions": 3,
+        "features": ["basic_file_ops", "basic_stats", "advanced_search", "caching", "analytics"],
+        "rate_limits": {
+          "requests_per_minute": 60,
+          "burst_limit": 20
+        }
+      },
+      "enterprise": {
+        "max_file_size": 104857600,
+        "max_operations_per_hour": 10000,
+        "max_concurrent_sessions": 10,
+        "features": ["basic_file_ops", "basic_stats", "advanced_search", "caching", "analytics", "telemetry", "custom_integrations", "sso", "audit_logging"],
+        "rate_limits": {
+          "requests_per_minute": 300,
+          "burst_limit": 100
+        }
+      }
+    }
+  },
+  "analytics": {
+    "enabled": true,
+    "privacy_mode": "balanced",
+    "track_usage": true,
+    "track_performance": true,
+    "track_errors": true,
+    "anonymize_data": false,
+    "batch_size": 100,
+    "batch_interval": 300,
+    "retention_days": 30,
+    "max_queue_size": 10000,
+    "flush_on_shutdown": true,
+    "local_storage": {
+      "enabled": true,
+      "max_entries": 10000,
+      "cleanup_interval": 3600,
+      "compression": true,
+      "encryption": true
+    },
+    "quota_enforcement": {
+      "enabled": true,
+      "check_interval": 60,
+      "grace_period": 300,
+      "warning_threshold": 0.8
+    },
+    "data_types": {
+      "file_operations": true,
+      "git_operations": true,
+      "search_queries": true,
+      "performance_metrics": true,
+      "error_tracking": true,
+      "user_behavior": true,
+      "system_metrics": true
+    },
+    "export": {
+      "enabled": true,
+      "format": "json",
+      "schedule": "daily",
+      "destination": "s3"
+    }
+  },
+  "authentication": {
+    "enabled": true,
+    "method": "email_password",
+    "auto_login": true,
+    "remember_credentials": true,
+    "session_timeout": 3600,
+    "token_refresh_threshold": 300,
+    "max_concurrent_sessions": 5,
+    "idle_timeout": 1800,
+    "device_registration": {
+      "enabled": true,
+      "auto_register": true,
+      "require_approval": true,
+      "max_devices": 10,
+      "device_timeout": 86400
+    },
+    "sso": {
+      "enabled": true,
+      "provider": "oauth2",
+      "endpoint": "https://auth.cursor-context.com/oauth",
+      "client_id": "production-client-id",
+      "client_secret": "production-client-secret",
+      "redirect_uri": "https://app.cursor-context.com/callback",
+      "scope": "openid profile email",
+      "auto_refresh": true
+    },
+    "security": {
+      "use_keyring": true,
+      "encrypt_tokens": true,
+      "require_2fa": true,
+      "password_policy": {
+        "min_length": 12,
+        "require_uppercase": true,
+        "require_lowercase": true,
+        "require_numbers": true,
+        "require_symbols": true,
+        "max_age_days": 90,
+        "history_count": 10
+      },
+      "session_security": {
+        "secure_cookies": true,
+        "http_only": true,
+        "same_site": "strict",
+        "csrf_protection": true
+      }
+    }
+  },
+  "performance": {
+    "enable_async_operations": false,
+    "max_concurrent_operations": 20,
+    "operation_timeout": 30,
+    "enable_compression": true,
+    "memory_limit": 1073741824,
+    "cpu_limit": 80,
+    "monitoring": {
+      "enabled": true,
+      "interval": 60,
+      "metrics_retention": 30,
+      "alert_thresholds": {
+        "memory_usage": 0.8,
+        "cpu_usage": 0.8,
+        "response_time": 5.0
+      }
+    }
+  },
+  "feature_flags": {
+    "advanced_search": true,
+    "caching": true,
+    "analytics": true,
+    "telemetry": true,
+    "custom_integrations": true,
+    "sso": true,
+    "audit_logging": true,
+    "performance_monitoring": true,
+    "error_tracking": true,
+    "usage_analytics": true
+  },
+  "deployment": {
+    "environment": "production",
+    "region": "us-east-1",
+    "cluster": "production",
+    "replicas": 5,
+    "resources": {
+      "cpu": "500m",
+      "memory": "1Gi",
+      "storage": "10Gi"
+    },
+    "health_checks": {
+      "enabled": true,
+      "interval": 30,
+      "timeout": 10,
+      "retries": 3
+    }
+  }
+}

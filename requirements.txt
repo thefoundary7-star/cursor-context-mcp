@@ -1,7 +1,30 @@
-# No external dependencies required
-# Python MCP server uses only standard library modules:
-# - json (JSON parsing)
-# - os (file system operations)
-# - sys (system-specific parameters and functions)
-# - subprocess (for git commands)
-# - typing (type hints)
+# Production MCP Server Dependencies
+# Core MCP framework
+mcp>=1.0.0
+
+# Optional dependencies for enhanced functionality
+# Uncomment as needed for production deployments:
+
+# For advanced logging and monitoring
+# structlog>=23.0.0
+# prometheus-client>=0.17.0
+
+# For configuration management
+# pydantic>=2.0.0
+# python-dotenv>=1.0.0
+
+# For SaaS integration
+# requests>=2.31.0
+httpx>=0.24.0
+
+# For performance monitoring
+# psutil>=5.9.0
+# memory-profiler>=0.61.0
+
+# For security enhancements
+# cryptography>=41.0.0
+# bcrypt>=4.0.0
+
+# For async operations (future enhancement)
+# aiofiles>=23.0.0
+# asyncio-mqtt>=0.13.0

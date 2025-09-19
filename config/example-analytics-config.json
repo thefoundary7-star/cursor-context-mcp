@@ -1,0 +1,115 @@
+{
+  "server": {
+    "name": "Cursor Context MCP Server",
+    "version": "2.0.0",
+    "max_file_size": 1048576,
+    "allowed_extensions": [],
+    "blocked_extensions": [".exe", ".dll", ".so", ".dylib", ".bin"],
+    "max_directory_depth": 10,
+    "enable_caching": true,
+    "cache_ttl": 300
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "logs/mcp_server.log",
+    "max_size": 10485760,
+    "backup_count": 5
+  },
+  "security": {
+    "allowed_paths": [],
+    "blocked_paths": [
+      "/etc",
+      "/sys",
+      "/proc",
+      "C:\\Windows\\System32",
+      "C:\\Windows\\SysWOW64"
+    ],
+    "enable_path_validation": true,
+    "enable_audit_logging": true
+  },
+  "saas": {
+    "enabled": true,
+    "api_endpoint": "https://api.cursor-context.com",
+    "api_key": "your-api-key-here",
+    "user_id": "your-user-id",
+    "session_id": "your-session-id",
+    "enable_analytics": true,
+    "enable_telemetry": true,
+    "http_client": {
+      "timeout": 30,
+      "max_retries": 3,
+      "retry_delay": 1.0,
+      "retry_backoff_factor": 2.0,
+      "max_retry_delay": 60.0,
+      "offline_grace_period": 300,
+      "enable_caching": true,
+      "cache_ttl": 300,
+      "verify_ssl": true,
+      "user_agent": "Cursor-Context-MCP-Server/2.0.0"
+    }
+  },
+  "license": {
+    "enabled": true,
+    "license_key": "your-license-key-here",
+    "validation_interval": 86400,
+    "offline_grace_period": 7200,
+    "device_fingerprint": {
+      "enabled": true,
+      "include_hardware": true,
+      "include_software": true,
+      "include_network": false
+    },
+    "tiers": {
+      "free": {
+        "max_file_size": 1048576,
+        "max_operations_per_hour": 100,
+        "features": ["basic_file_ops", "basic_stats"]
+      },
+      "pro": {
+        "max_file_size": 10485760,
+        "max_operations_per_hour": 1000,
+        "features": ["basic_file_ops", "basic_stats", "advanced_search", "caching"]
+      },
+      "enterprise": {
+        "max_file_size": 104857600,
+        "max_operations_per_hour": 10000,
+        "features": ["basic_file_ops", "basic_stats", "advanced_search", "caching", "analytics", "telemetry", "custom_integrations"]
+      }
+    }
+  },
+  "analytics": {
+    "enabled": true,
+    "privacy_mode": "balanced",
+    "track_usage": true,
+    "track_performance": true,
+    "track_errors": true,
+    "anonymize_data": false,
+    "batch_size": 100,
+    "batch_interval": 300,
+    "retention_days": 30,
+    "local_storage": {
+      "enabled": true,
+      "max_entries": 10000,
+      "cleanup_interval": 3600
+    },
+    "quota_enforcement": {
+      "enabled": true,
+      "check_interval": 60,
+      "grace_period": 300
+    },
+    "data_types": {
+      "file_operations": true,
+      "git_operations": true,
+      "search_queries": true,
+      "performance_metrics": true,
+      "error_tracking": true
+    }
+  },
+  "performance": {
+    "enable_async_operations": false,
+    "max_concurrent_operations": 10,
+    "operation_timeout": 30,
+    "enable_compression": false
+  }
+}

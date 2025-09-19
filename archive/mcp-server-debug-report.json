@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-09-19T02:55:32.834Z",
+  "environment": {
+    "nodeVersion": "v24.5.0",
+    "platform": "win32",
+    "arch": "x64",
+    "cwd": "C:\\Users\\manay\\Desktop\\cursor-context-mcp"
+  },
+  "files": {
+    "serverExists": true,
+    "distExists": true,
+    "packageJsonExists": true,
+    "pythonServerExists": true
+  },
+  "testResults": [
+    {
+      "test": "Server Startup",
+      "status": "PASS"
+    },
+    {
+      "test": "Initialize Request",
+      "status": "FAIL",
+      "error": "Missing fields: protocolVersion, capabilities, serverInfo"
+    },
+    {
+      "test": "Tools List Request",
+      "status": "FAIL",
+      "error": "Missing fields: tools"
+    },
+    {
+      "test": "Invalid Method Request",
+      "status": "PASS"
+    },
+    {
+      "test": "Tool: listFiles",
+      "status": "PASS"
+    },
+    {
+      "test": "Tool: readFile",
+      "status": "PASS"
+    },
+    {
+      "test": "Tool: getGitStatus",
+      "status": "PASS"
+    },
+    {
+      "test": "Tool: getProjectRoot",
+      "status": "PASS"
+    },
+    {
+      "test": "Tool: searchFiles",
+      "status": "PASS"
+    },
+    {
+      "test": "Python Comparison",
+      "status": "PASS"
+    }
+  ]
+}

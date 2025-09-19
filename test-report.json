@@ -1,0 +1,106 @@
+{
+  "timestamp": "2025-09-19T12:21:57.074Z",
+  "summary": {
+    "total": 18,
+    "passed": 15,
+    "failed": 3,
+    "passRate": 83.3
+  },
+  "details": [
+    {
+      "testName": "Server is running",
+      "status": "PASS",
+      "details": "Status: 200"
+    },
+    {
+      "testName": "API root endpoint",
+      "status": "PASS",
+      "details": "Response: {\"success\":true,\"message\":\"MCP Server SaaS Backend API\",\"version\":\"1.0.0\",\"environment\":\"development..."
+    },
+    {
+      "testName": "Basic Health Check",
+      "status": "PASS",
+      "details": "Status: 200"
+    },
+    {
+      "testName": "Readiness Check",
+      "status": "PASS",
+      "details": "Status: 200"
+    },
+    {
+      "testName": "Liveness Check",
+      "status": "PASS",
+      "details": "Status: 200"
+    },
+    {
+      "testName": "Detailed Health Check",
+      "status": "FAIL",
+      "details": "Error: {\"success\":false,\"error\":\"Endpoint not found\",\"message\":\"The endpoint GET /api/health/detailed was not found\"}"
+    },
+    {
+      "testName": "Database Connection",
+      "status": "FAIL",
+      "details": "Database connection failed or not configured"
+    },
+    {
+      "testName": "CORS for http://localhost:3000",
+      "status": "PASS",
+      "details": "CORS headers present"
+    },
+    {
+      "testName": "CORS for http://localhost:3001",
+      "status": "PASS",
+      "details": "CORS headers present"
+    },
+    {
+      "testName": "CORS for https://yourdomain.com",
+      "status": "PASS",
+      "details": "CORS headers present"
+    },
+    {
+      "testName": "Rate Limiting",
+      "status": "PASS",
+      "details": "All requests processed (rate limit not exceeded)"
+    },
+    {
+      "testName": "Login Endpoint",
+      "status": "PASS",
+      "details": "Properly rejects invalid credentials"
+    },
+    {
+      "testName": "License Validation Endpoint",
+      "status": "PASS",
+      "details": "Properly rejects invalid license"
+    },
+    {
+      "testName": "Analytics Tracking (No API Key)",
+      "status": "PASS",
+      "details": "Properly requires API key authentication"
+    },
+    {
+      "testName": "User Profile (No Auth)",
+      "status": "PASS",
+      "details": "Properly requires authentication"
+    },
+    {
+      "testName": "404 Error Handling",
+      "status": "PASS",
+      "details": "Properly returns 404 for non-existent endpoints"
+    },
+    {
+      "testName": "Malformed JSON Handling",
+      "status": "FAIL",
+      "details": "Unexpected error: Request failed with status code 500"
+    },
+    {
+      "testName": "Security Headers",
+      "status": "PASS",
+      "details": "Response received (headers check would require full response object)"
+    }
+  ],
+  "errors": [
+    "Detailed Health Check: Error: {\"success\":false,\"error\":\"Endpoint not found\",\"message\":\"The endpoint GET /api/health/detailed was not found\"}",
+    "Database Connection: Database connection failed or not configured",
+    "Malformed JSON Handling: Unexpected error: Request failed with status code 500"
+  ]
+}

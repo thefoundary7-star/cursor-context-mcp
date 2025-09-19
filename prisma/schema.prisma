@@ -1,0 +1,244 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  password         String
+  firstName        String?
+  lastName         String?
+  company          String?
+  role             UserRole @default(USER)
+  isActive         Boolean  @default(true)
+  stripeCustomerId String?  @unique
+  trialEndsAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  subscriptions Subscription[]
+  licenses      License[]
+  analytics     Analytics[]
+  apiKeys       ApiKey[]
+  usage         Usage[]
+  invoices      Invoice[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id                    String            @id @default(cuid())
+  userId                String
+  stripeCustomerId      String?           @unique
+  stripeSubscriptionId  String?           @unique
+  stripePriceId         String?
+  plan                  SubscriptionPlan
+  status                SubscriptionStatus
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean           @default(false)
+  trialStart            DateTime?
+  trialEnd              DateTime?
+  cancelAt              DateTime?
+  canceledAt            DateTime?
+  endedAt               DateTime?
+  metadata              Json?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenses License[]
+  invoices Invoice[]
+
+  @@map("subscriptions")
+}
+
+model License {
+  id          String      @id @default(cuid())
+  userId      String
+  licenseKey  String      @unique
+  name        String
+  description String?
+  plan        LicensePlan
+  maxServers  Int         @default(1)
+  isActive    Boolean     @default(true)
+  expiresAt   DateTime?
+  subscriptionId String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  servers     Server[]
+  analytics   Analytics[]
+  usage       Usage[]
+
+  @@map("licenses")
+}
+
+model Server {
+  id          String   @id @default(cuid())
+  licenseId   String
+  serverId    String   @unique // Unique identifier from MCP server
+  name        String?
+  version     String?
+  lastSeen    DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  license     License      @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  analytics   Analytics[]
+  usage       Usage[]
+
+  @@map("servers")
+}
+
+model Analytics {
+  id          String      @id @default(cuid())
+  userId      String
+  licenseId   String?
+  serverId    String?
+  eventType   AnalyticsEventType
+  eventData   Json?
+  metadata    Json?
+  timestamp   DateTime    @default(now())
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  license     License?    @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+  server      Server?     @relation(fields: [serverId], references: [id], onDelete: SetNull)
+
+  @@map("analytics")
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  keyHash     String   @unique
+  permissions Json?
+  lastUsed    DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+model Usage {
+  id            String   @id @default(cuid())
+  userId        String
+  licenseId     String?
+  serverId      String?
+  operationType String   // e.g., "api_call", "request", "feature_usage"
+  count         Int      @default(1)
+  timestamp     DateTime @default(now())
+  metadata      Json?
+  billingPeriod DateTime // Start of billing period (monthly)
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  license License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+  server  Server?  @relation(fields: [serverId], references: [id], onDelete: SetNull)
+
+  @@map("usage")
+}
+
+model Invoice {
+  id                String   @id @default(cuid())
+  userId            String
+  stripeInvoiceId   String   @unique
+  subscriptionId    String?
+  amount            Int      // Amount in cents
+  currency          String   @default("usd")
+  status            InvoiceStatus
+  paidAt            DateTime?
+  dueDate           DateTime?
+  invoiceUrl        String?
+  hostedInvoiceUrl  String?
+  pdfUrl            String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@map("invoices")
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  eventType   String
+  eventId     String   @unique
+  processed   Boolean  @default(false)
+  data        Json
+  createdAt   DateTime @default(now())
+
+  @@map("webhook_events")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SubscriptionPlan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  TRIALING
+  UNPAID
+}
+
+enum LicensePlan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum AnalyticsEventType {
+  SERVER_START
+  SERVER_STOP
+  REQUEST_COUNT
+  ERROR_COUNT
+  FEATURE_USAGE
+  QUOTA_EXCEEDED
+  LICENSE_VALIDATION
+  HEARTBEAT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
