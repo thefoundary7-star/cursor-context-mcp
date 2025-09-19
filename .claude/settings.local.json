@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/manay/AppData/Roaming/Claude/**)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(where node)",
+      "Bash(dir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

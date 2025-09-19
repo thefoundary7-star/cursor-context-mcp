@@ -1,0 +1,7 @@
+# No external dependencies required
+# Python MCP server uses only standard library modules:
+# - json (JSON parsing)
+# - os (file system operations)
+# - sys (system-specific parameters and functions)
+# - subprocess (for git commands)
+# - typing (type hints)
