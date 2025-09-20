@@ -1,3 +1,63 @@
+# MCP Server with Directory Configuration
+
+A production-ready MCP (Model Context Protocol) server with comprehensive directory configuration management for commercial use. Features user-friendly configuration, security controls, and audit logging.
+
+## 🆕 New: Directory Configuration System
+
+The MCP server now includes a powerful directory configuration system that allows users to easily control which folders the server can access without editing Claude Desktop configurations.
+
+### Key Features
+- **User-friendly Configuration**: JSON-based configuration in `~/.mcp/config.json`
+- **CLI Management**: Easy command-line tools for configuration
+- **Auto-reload**: Configuration changes are automatically detected and applied
+- **Security Controls**: Prevents access to system directories and sensitive files
+- **Audit Logging**: Tracks all directory access for security auditing
+- **Git Integration**: Automatically respects `.gitignore` patterns
+- **File Size Limits**: Configurable limits to prevent reading large files
+- **Pattern Exclusions**: Flexible file and directory exclusion patterns
+
+## 🚀 Quick Start
+
+### 1. Setup Configuration
+```bash
+# Interactive setup
+python setup_mcp_config.py
+
+# Or manually add directories
+python mcp_config_manager.py --add-dir /path/to/your/project
+```
+
+### 2. List Configured Directories
+```bash
+python mcp_config_manager.py --list-dirs
+```
+
+### 3. Start the Server
+```bash
+python official_mcp_server.py
+```
+
+### 4. Integration with Claude Desktop
+Update your Claude Desktop configuration:
+```json
+{
+  "mcpServers": {
+    "cursor-context": {
+      "command": "python",
+      "args": ["official_mcp_server.py", "--config", "~/.mcp/config.json"]
+    }
+  }
+}
+```
+
+## 📚 Documentation
+
+- **[Directory Configuration Guide](MCP_DIRECTORY_CONFIGURATION_GUIDE.md)** - Complete guide to the configuration system
+- **[API Documentation](API_DOCUMENTATION.md)** - MCP server API reference
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+
+---
+
 # MCP SaaS Dashboard
 
 A complete user dashboard frontend for your SaaS MCP server business built with Next.js 14, TypeScript, and modern UI components.

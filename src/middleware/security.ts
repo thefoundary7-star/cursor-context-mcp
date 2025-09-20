@@ -44,7 +44,7 @@ export const corsMiddleware = cors({
   ],
 });
 
-// Helmet security headers
+// Enhanced Helmet security headers
 export const helmetMiddleware = helmet({
   contentSecurityPolicy: {
     directives: {
@@ -57,14 +57,32 @@ export const helmetMiddleware = helmet({
       frameSrc: ["https://js.stripe.com"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+      manifestSrc: ["'self'"],
+      mediaSrc: ["'self'"],
+      workerSrc: ["'self'"],
     },
+    reportOnly: false,
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  dnsPrefetchControl: { allow: false },
+  frameguard: { action: 'deny' },
+  hidePoweredBy: true,
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
     preload: true,
   },
+  ieNoOpen: true,
+  noSniff: true,
+  originAgentCluster: true,
+  permittedCrossDomainPolicies: false,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  xssFilter: true,
 });
 
 // Rate limiting middleware
@@ -106,26 +124,55 @@ export const rateLimitMiddleware = rateLimit({
   },
 });
 
-// Security headers middleware
+// Enhanced security headers middleware
 export const securityHeaders = (req: Request, res: Response, next: NextFunction) => {
   // Remove X-Powered-By header
   res.removeHeader('X-Powered-By');
-  
-  // Add custom security headers
+
+  // Add comprehensive security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  res.setHeader('X-Download-Options', 'noopen');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+
+  // Content Security Policy (CSP) for API responses
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https:",
+    "connect-src 'self' https://api.stripe.com",
+    "frame-src https://js.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests"
+  ];
+  res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
+
+  // Strict Transport Security (HSTS)
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
   // Add request ID for tracking
-  const requestId = req.headers['x-request-id'] || 
-    req.headers['x-correlation-id'] || 
+  const requestId = req.headers['x-request-id'] ||
+    req.headers['x-correlation-id'] ||
     `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+
   res.setHeader('X-Request-ID', requestId);
   (req as any).requestId = requestId;
-  
+
+  // Add security monitoring headers
+  res.setHeader('X-Security-Version', '1.0');
+  res.setHeader('X-API-Version', 'v1');
+
   next();
 };
 

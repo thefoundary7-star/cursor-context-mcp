@@ -5,7 +5,20 @@
       "Bash(npm run build:*)",
       "Bash(node:*)",
       "Bash(where node)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(python -m pytest tests/test_mcp_server.py::TestListFilesSync::test_list_files_success -v --tb=short --timeout=30)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/test_mcp_server.py::TestListFilesSync::test_list_files_success -v --tb=short)",
+      "Bash(python -m pytest tests/test_basic.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_mcp_functions.py -v --tb=short)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Read(//c/Users/manay/.mcp/**)",
+      "Bash(python:*)",
+      "Bash(timeout:*)",
+      "Bash(findstr:*)",
+      "Bash(bandit:*)",
+      "Bash(safety check:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

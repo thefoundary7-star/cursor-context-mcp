@@ -39,7 +39,15 @@ export const verifyAccessToken = (token: string): JWTPayload => {
       audience: 'mcp-saas-client',
     }) as JWTPayload;
   } catch (error) {
-    throw new Error('Invalid or expired access token');
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error('Invalid access token');
+    } else if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('Access token expired');
+    } else if (error instanceof jwt.NotBeforeError) {
+      throw new Error('Access token not active');
+    } else {
+      throw new Error('Token verification failed');
+    }
   }
 };
 
@@ -50,7 +58,15 @@ export const verifyRefreshToken = (token: string): JWTPayload => {
       audience: 'mcp-saas-client',
     }) as JWTPayload;
   } catch (error) {
-    throw new Error('Invalid or expired refresh token');
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error('Invalid refresh token');
+    } else if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('Refresh token expired');
+    } else if (error instanceof jwt.NotBeforeError) {
+      throw new Error('Refresh token not active');
+    } else {
+      throw new Error('Refresh token verification failed');
+    }
   }
 };
 
@@ -89,38 +105,62 @@ export const generateSecureRandom = (min: number = 0, max: number = 1000000): nu
 
 // Encrypt sensitive data
 export const encrypt = (text: string, secretKey: string): string => {
-  const algorithm = 'aes-256-gcm';
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipher(algorithm, secretKey);
-  
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  
-  const authTag = cipher.getAuthTag();
-  
-  return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+  try {
+    const algorithm = 'aes-256-gcm';
+    const iv = crypto.randomBytes(16);
+    const key = crypto.scryptSync(secretKey, 'salt', 32);
+    const cipher = crypto.createCipherGCM(algorithm, key, iv);
+
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+
+    const authTag = cipher.getAuthTag();
+
+    return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Invalid encryption parameters');
+    } else if (error instanceof RangeError) {
+      throw new Error('Encryption data size error');
+    } else {
+      throw new Error('Encryption failed');
+    }
+  }
 };
 
 // Decrypt sensitive data
 export const decrypt = (encryptedText: string, secretKey: string): string => {
-  const algorithm = 'aes-256-gcm';
-  const parts = encryptedText.split(':');
-  
-  if (parts.length !== 3) {
-    throw new Error('Invalid encrypted text format');
+  try {
+    const algorithm = 'aes-256-gcm';
+    const parts = encryptedText.split(':');
+
+    if (parts.length !== 3) {
+      throw new Error('Invalid encrypted text format');
+    }
+
+    const iv = Buffer.from(parts[0], 'hex');
+    const authTag = Buffer.from(parts[1], 'hex');
+    const encrypted = parts[2];
+    const key = crypto.scryptSync(secretKey, 'salt', 32);
+
+    const decipher = crypto.createDecipherGCM(algorithm, key, iv);
+    decipher.setAuthTag(authTag);
+
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    return decrypted;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Invalid encrypted text format')) {
+      throw error;
+    } else if (error instanceof TypeError) {
+      throw new Error('Invalid decryption parameters');
+    } else if (error instanceof Error && error.message.includes('Unsupported state')) {
+      throw new Error('Invalid authentication tag');
+    } else {
+      throw new Error('Decryption failed');
+    }
   }
-  
-  const iv = Buffer.from(parts[0], 'hex');
-  const authTag = Buffer.from(parts[1], 'hex');
-  const encrypted = parts[2];
-  
-  const decipher = crypto.createDecipher(algorithm, secretKey);
-  decipher.setAuthTag(authTag);
-  
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  
-  return decrypted;
 };
 
 // Generate HMAC signature
@@ -128,13 +168,24 @@ export const generateHmacSignature = (data: string, secret: string): string => {
   return crypto.createHmac('sha256', secret).update(data).digest('hex');
 };
 
-// Verify HMAC signature
+// Verify HMAC signature with timing attack protection
 export const verifyHmacSignature = (data: string, signature: string, secret: string): boolean => {
-  const expectedSignature = generateHmacSignature(data, secret);
-  return crypto.timingSafeEqual(
-    Buffer.from(signature, 'hex'),
-    Buffer.from(expectedSignature, 'hex')
-  );
+  try {
+    const expectedSignature = generateHmacSignature(data, secret);
+
+    // Normalize signature lengths to prevent timing attacks
+    if (signature.length !== expectedSignature.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    );
+  } catch (error) {
+    // Log suspicious activity but don't reveal details
+    return false;
+  }
 };
 
 // Generate UUID v4
@@ -144,5 +195,91 @@ export const generateUUID = (): string => {
 
 // Hash function for consistent hashing
 export const hash = (input: string, algorithm: string = 'sha256'): string => {
-  return crypto.createHash(algorithm).update(input).digest('hex');
+  try {
+    return crypto.createHash(algorithm).update(input).digest('hex');
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Invalid hash algorithm or input');
+    } else {
+      throw new Error('Hashing failed');
+    }
+  }
+};
+
+// Generate hardware fingerprint for license validation
+export const generateHardwareFingerprint = (): string => {
+  try {
+    const os = require('os');
+    const fingerprint = {
+      platform: os.platform(),
+      arch: os.arch(),
+      cpus: os.cpus().length,
+      totalmem: Math.floor(os.totalmem() / (1024 * 1024 * 1024)), // GB
+      hostname: os.hostname(),
+    };
+
+    const fingerprintString = JSON.stringify(fingerprint);
+    return hash(fingerprintString);
+  } catch (error) {
+    throw new Error('Failed to generate hardware fingerprint');
+  }
+};
+
+// Generate digital signature for license tampering detection
+export const generateDigitalSignature = (data: string, privateKey: string): string => {
+  try {
+    const sign = crypto.createSign('SHA256');
+    sign.update(data);
+    sign.end();
+    return sign.sign(privateKey, 'hex');
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('key')) {
+      throw new Error('Invalid private key for signing');
+    } else {
+      throw new Error('Digital signature generation failed');
+    }
+  }
+};
+
+// Verify digital signature
+export const verifyDigitalSignature = (data: string, signature: string, publicKey: string): boolean => {
+  try {
+    const verify = crypto.createVerify('SHA256');
+    verify.update(data);
+    verify.end();
+    return verify.verify(publicKey, signature, 'hex');
+  } catch (error) {
+    // Don't reveal details about verification errors
+    return false;
+  }
+};
+
+// Secure random token for MFA
+export const generateMfaToken = (length: number = 6): string => {
+  try {
+    const digits = '0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      const randomIndex = crypto.randomInt(0, digits.length);
+      result += digits[randomIndex];
+    }
+    return result;
+  } catch (error) {
+    throw new Error('Failed to generate MFA token');
+  }
+};
+
+// Generate secure backup codes for MFA
+export const generateBackupCodes = (count: number = 10): string[] => {
+  try {
+    const codes: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const code = crypto.randomBytes(4).toString('hex').toUpperCase();
+      const formattedCode = code.match(/.{1,4}/g)?.join('-') || code;
+      codes.push(formattedCode);
+    }
+    return codes;
+  } catch (error) {
+    throw new Error('Failed to generate backup codes');
+  }
 };

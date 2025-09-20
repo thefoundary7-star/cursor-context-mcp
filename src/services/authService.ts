@@ -6,11 +6,12 @@ import {
   generateRefreshToken,
   verifyRefreshToken 
 } from '@/utils/crypto';
-import { 
-  AuthenticationError, 
-  NotFoundError, 
+import {
+  AuthenticationError,
+  NotFoundError,
   ConflictError,
-  CustomError 
+  CustomError,
+  RateLimitError
 } from '@/utils/errors';
 import { LoginRequest, LoginResponse, JWTPayload } from '@/types';
 import logger from '@/utils/logger';
@@ -79,9 +80,79 @@ export class AuthService {
     }
   }
 
-  // User login
-  static async login(loginData: LoginRequest): Promise<LoginResponse> {
+  // Check and handle account lockout
+  private static async checkAccountLockout(email: string): Promise<void> {
+    const lockoutSettings = {
+      maxAttempts: 5,
+      lockoutDuration: 30 * 60 * 1000, // 30 minutes
+      attemptWindow: 15 * 60 * 1000, // 15 minutes
+    };
+
+    const cutoffTime = new Date(Date.now() - lockoutSettings.attemptWindow);
+
+    const recentAttempts = await prisma.loginAttempt.count({
+      where: {
+        email,
+        successful: false,
+        createdAt: { gte: cutoffTime },
+      },
+    });
+
+    if (recentAttempts >= lockoutSettings.maxAttempts) {
+      const lastAttempt = await prisma.loginAttempt.findFirst({
+        where: { email },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (lastAttempt) {
+        const lockoutEnd = new Date(lastAttempt.createdAt.getTime() + lockoutSettings.lockoutDuration);
+        if (new Date() < lockoutEnd) {
+          const remainingTime = Math.ceil((lockoutEnd.getTime() - Date.now()) / 1000 / 60);
+          logger.warn('Account locked due to failed attempts', {
+            email,
+            remainingTime,
+            attempts: recentAttempts,
+          });
+          throw new RateLimitError(`Account locked. Try again in ${remainingTime} minutes.`);
+        }
+      }
+    }
+  }
+
+  // Record login attempt
+  private static async recordLoginAttempt(email: string, successful: boolean, ip?: string): Promise<void> {
     try {
+      await prisma.loginAttempt.create({
+        data: {
+          email,
+          successful,
+          ipAddress: ip,
+          userAgent: '', // Will be filled by middleware
+          createdAt: new Date(),
+        },
+      });
+
+      // Clean up old attempts (older than 24 hours)
+      const cleanupTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      await prisma.loginAttempt.deleteMany({
+        where: {
+          createdAt: { lt: cleanupTime },
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to record login attempt', {
+        error: (error as Error).message,
+        email,
+      });
+    }
+  }
+
+  // User login with account lockout protection
+  static async login(loginData: LoginRequest, ip?: string): Promise<LoginResponse> {
+    try {
+      // Check account lockout first
+      await this.checkAccountLockout(loginData.email);
+
       // Find user by email
       const user = await prisma.user.findUnique({
         where: { email: loginData.email },
@@ -91,22 +162,47 @@ export class AuthService {
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
+          mfaSettings: true,
         },
       });
 
       if (!user) {
+        await this.recordLoginAttempt(loginData.email, false, ip);
         throw new AuthenticationError('Invalid email or password');
       }
 
       if (!user.isActive) {
+        await this.recordLoginAttempt(loginData.email, false, ip);
         throw new AuthenticationError('Account is deactivated');
       }
 
       // Verify password
       const isPasswordValid = await comparePassword(loginData.password, user.password);
       if (!isPasswordValid) {
+        await this.recordLoginAttempt(loginData.email, false, ip);
         throw new AuthenticationError('Invalid email or password');
       }
+
+      // Check if MFA is required
+      const requiresMfa = user.mfaSettings?.isEnabled || false;
+
+      if (requiresMfa && !loginData.mfaToken) {
+        await this.recordLoginAttempt(loginData.email, false, ip);
+        throw new AuthenticationError('MFA token required');
+      }
+
+      if (requiresMfa && loginData.mfaToken) {
+        const { MfaService } = await import('./mfaService');
+        try {
+          await MfaService.verifyToken(user.id, loginData.mfaToken);
+        } catch (error) {
+          await this.recordLoginAttempt(loginData.email, false, ip);
+          throw new AuthenticationError('Invalid MFA token');
+        }
+      }
+
+      // Record successful login attempt
+      await this.recordLoginAttempt(loginData.email, true, ip);
 
       // Generate tokens
       const payload: JWTPayload = {
@@ -118,10 +214,15 @@ export class AuthService {
       const accessToken = generateAccessToken(payload);
       const refreshToken = generateRefreshToken(payload);
 
-      // Remove password from user object
-      const { password, ...userWithoutPassword } = user;
+      // Remove password and mfaSettings from user object
+      const { password, mfaSettings, ...userWithoutPassword } = user;
 
-      logger.info('User logged in successfully', { userId: user.id, email: user.email });
+      logger.info('User logged in successfully', {
+        userId: user.id,
+        email: user.email,
+        mfaUsed: requiresMfa,
+        ip,
+      });
 
       return {
         user: userWithoutPassword,

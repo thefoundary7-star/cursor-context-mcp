@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "setup": "node scripts/test/setup-environment.js",
+    "test:stripe": "node scripts/test/test-stripe.js",
+    "test:email": "node scripts/test/test-email.js",
+    "test:analytics": "node scripts/test/test-analytics.js",
+    "test:config": "npm run test:stripe && npm run test:email && npm run test:analytics",
+    "dev:setup": "npm run setup && npm run dev"
+  }
+}

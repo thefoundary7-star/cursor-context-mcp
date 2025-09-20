@@ -1,27 +1,13 @@
 {
-     "mcpServers": {
-       "official-mcp-server": {
-         "command": "python",
-         "args": [
-           "C:\\Users\\manay\\Desktop\\cursor-context-mcp\\official_mcp_server.py"
-         ],
-         "env": {
-           "PATH": "C:\\Users\\manay\\AppData\\Local\\Programs\\Python\\Python313;C:\\Users\\manay\\AppData\\Local\\Programs\\Python\\Python313\\Scripts;%PATH%"
-         }
-       },
-       "cursor-context-mcp-nodejs": {
-         "command": "cmd",
-         "args": [
-           "/c",
-           "C:\\Users\\manay\\Desktop\\cursor-context-mcp\\run-mcp-server.bat"
-         ],
-         "cwd": "C:\\Users\\manay\\Desktop\\cursor-context-mcp",
-         "env": {
-           "NODE_ENV": "production",
-           "MCP_SERVER_NAME": "cursor-context-mcp-nodejs",
-           "MCP_SERVER_VERSION": "1.0.0",
-           "PATH": "C:\\Program Files\\nodejs;%PATH%"
-         }
-       }
-     }
-   }
+  "mcpServers": {
+    "cursor-context": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "C:\\Users\\manay\\Desktop\\cursor-context-mcp",
+        "run",
+        "official_mcp_server.py"
+      ]
+    }
+  }
+}

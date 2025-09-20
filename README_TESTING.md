@@ -1,340 +1,331 @@
-# MCP Integration Testing Guide
+# MCP Server Platform Testing Guide
 
-This guide provides comprehensive instructions for testing the integration between your Python MCP server and Node.js backend.
+This document provides comprehensive information about the testing system for the MCP Server Platform, including unit tests, integration tests, security audits, and code quality checks.
 
 ## Overview
 
-The testing suite includes:
-- **Python Integration Tests** (`test_mcp_integration.py`) - Tests MCP→Node.js communication
-- **Node.js Simulator Tests** (`test_mcp_simulator.js`) - Simulates MCP requests from server perspective
-- **Integration Test Suite** (`integration_test_suite.js`) - Orchestrates all tests
-- **Debug Monitor** (`debug_monitor.py`) - Real-time debugging and monitoring
-- **Network Monitor** (`network_monitor.js`) - Network health monitoring
-- **Performance Benchmark** (`performance_benchmark.py`) - Load and performance testing
-- **Test Runner** (`test_runner.py`) - Unified test execution interface
+The MCP Server Platform includes a comprehensive testing suite designed to ensure reliability, security, and maintainability. The testing system consists of:
+
+- **Unit Tests**: Test individual components and functions
+- **Integration Tests**: Test component interactions and workflows
+- **Security Tests**: Audit security features and vulnerability protection
+- **Code Quality Checks**: Ensure code standards and best practices
+
+## Test Structure
+
+```
+tests/
+├── __init__.py                 # Test package initialization
+├── conftest.py                 # Pytest configuration and fixtures
+├── test_mcp_server.py          # Unit tests for MCP server
+└── test_config_integration.py  # Integration tests
+
+test_directory_access.py        # Security audit script
+run_tests.py                    # Test runner script
+pytest.ini                      # Pytest configuration
+requirements-test.txt           # Testing dependencies
+```
 
 ## Quick Start
 
-### 1. Prerequisites
+### 1. Install Testing Dependencies
 
-Ensure you have the following installed:
 ```bash
-# Python dependencies
-pip install aiohttp requests psutil
-
-# Node.js dependencies
-npm install axios uuid
-
-# Make scripts executable
-chmod +x *.py *.js
+pip install -r requirements-test.txt
 ```
 
-### 2. Start Backend Server
+### 2. Run All Tests
 
-Make sure your Node.js backend is running:
 ```bash
-npm start
-# or
-node src/server.ts
+python run_tests.py --full
 ```
 
-### 3. Run Quick Tests
+### 3. Run Specific Test Types
 
 ```bash
-# Run basic connectivity and integration tests
-python test_runner.py --quick
+# Unit tests only
+python run_tests.py --unit
 
-# Or run individual tests
-python test_mcp_integration.py
-node test_mcp_simulator.js
+# Integration tests only
+python run_tests.py --integration
+
+# Security tests only
+python run_tests.py --security
+
+# Code quality checks
+python run_tests.py --quality
 ```
 
-## Test Categories
+## Test Types
 
-### 1. Communication Flow Tests
+### Unit Tests (`tests/test_mcp_server.py`)
 
-Test the basic communication between Python MCP server and Node.js backend.
+Unit tests focus on testing individual functions and components in isolation.
 
-**Python Tests:**
-```bash
-python test_mcp_integration.py --backend-url http://localhost:3000
+**Coverage:**
+- `_list_files_sync()` function
+- `_read_file_sync()` function
+- `_get_git_status_sync()` function
+- `register_tools()` function
+- Error handling and edge cases
+- Security features
+- Configuration integration
+
+**Key Test Classes:**
+- `TestListFilesSync`: File listing functionality
+- `TestReadFileSync`: File reading functionality
+- `TestGetGitStatusSync`: Git status functionality
+- `TestRegisterTools`: Tool registration
+- `TestErrorHandling`: Error handling
+- `TestSecurityFeatures`: Security features
+- `TestConfigurationIntegration`: Config integration
+
+**Example:**
+```python
+def test_list_files_success(self, test_project_dir, config_manager):
+    """Test successful file listing."""
+    config_manager.add_directory(test_project_dir)
+    
+    with patch('official_mcp_server.config_manager', config_manager):
+        result = _list_files_sync(test_project_dir)
+    
+    assert result["success"] is True
+    assert "files" in result
+    assert "directories" in result
 ```
 
-**Node.js Tests:**
-```bash
-node test_mcp_simulator.js --backend-url http://localhost:3000
+### Integration Tests (`tests/test_config_integration.py`)
+
+Integration tests verify that different components work together correctly.
+
+**Coverage:**
+- Configuration file management
+- CLI command integration
+- Server-configuration integration
+- End-to-end workflows
+- Performance testing
+- Error recovery
+
+**Key Test Classes:**
+- `TestConfigIntegration`: Configuration management
+- `TestCLIIntegration`: CLI command testing
+- `TestServerIntegration`: Server functionality
+- `TestEndToEndIntegration`: Complete workflows
+- `TestPerformanceIntegration`: Performance testing
+
+**Example:**
+```python
+def test_complete_workflow(self, test_project_dir, test_docs_dir, temp_dir):
+    """Test complete workflow from setup to file access."""
+    config_path = os.path.join(temp_dir, "e2e_config.json")
+    config_manager = MCPConfigManager(config_path)
+    
+    # Add directories and test operations
+    config_manager.add_directory(test_project_dir)
+    
+    with patch('official_mcp_server.config_manager', config_manager):
+        result = _list_files_sync(test_project_dir)
+        assert result["success"] is True
 ```
 
-**What's Tested:**
-- ✅ Backend connectivity
-- ✅ License validation (valid/invalid)
-- ✅ Usage tracking data transmission
-- ✅ Network failure recovery
-- ✅ Authentication flow
+### Security Tests (`test_directory_access.py`)
 
-### 2. Integration Tests
+Security tests audit the system for vulnerabilities and ensure security features work correctly.
 
-Run comprehensive integration tests that combine both Python and Node.js testing.
+**Coverage:**
+- Path traversal protection
+- System directory protection
+- File size limits
+- Exclusion patterns
+- Configuration security
+- Audit logging
+- Permission handling
+- Concurrent access
 
-```bash
-node integration_test_suite.js --verbose
+**Key Test Methods:**
+- `test_path_traversal_protection()`: Test against directory traversal attacks
+- `test_system_directory_protection()`: Test system directory access blocking
+- `test_file_size_limits()`: Test file size enforcement
+- `test_exclusion_patterns()`: Test file exclusion functionality
+- `test_configuration_security()`: Test config validation
+- `test_audit_logging()`: Test audit trail functionality
+
+**Example:**
+```python
+def test_path_traversal_protection(self, config_manager):
+    """Test protection against path traversal attacks."""
+    traversal_attempts = [
+        "../sensitive_dir/secrets.txt",
+        "../../sensitive_dir/secrets.txt",
+        "%2e%2e%2fsensitive_dir%2fsecrets.txt",
+    ]
+    
+    for attempt in traversal_attempts:
+        result = _read_file_sync(test_path)
+        assert result["success"] is False
 ```
 
-**What's Tested:**
-- ✅ End-to-end workflow
-- ✅ License validation flow
-- ✅ Usage tracking flow
-- ✅ Error handling flow
-- ✅ Network recovery flow
+## Test Fixtures
 
-### 3. Performance Tests
+The testing system includes comprehensive fixtures in `conftest.py`:
 
-Benchmark the performance of your MCP integration.
+### Directory Fixtures
+- `temp_dir`: Temporary directory for testing
+- `test_project_dir`: Project directory with sample files
+- `test_docs_dir`: Documents directory
+- `git_repo`: Git repository for testing
+
+### Configuration Fixtures
+- `config_manager`: MCP configuration manager
+- `test_config_path`: Test configuration file path
+- `sample_config`: Sample configuration data
+
+### Mock Fixtures
+- `mock_mcp_server`: Mock MCP server
+- `mock_config_manager`: Mock configuration manager
+
+## Running Tests
+
+### Using the Test Runner
+
+The `run_tests.py` script provides a comprehensive test runner:
 
 ```bash
-# Load test
-python performance_benchmark.py --test-type load --concurrent 10 --duration 60
+# Run all tests with verbose output
+python run_tests.py --full --verbose
 
-# Stress test
-python performance_benchmark.py --test-type stress --max-concurrent 50 --duration 120
+# Run specific test types
+python run_tests.py --unit --integration
 
-# Endurance test
-python performance_benchmark.py --test-type endurance --concurrent 5 --duration 300
+# Generate detailed report
+python run_tests.py --full --report test_report.txt
 ```
 
-**Performance Targets:**
-- Average response time: < 500ms
-- 95th percentile: < 2 seconds
-- Throughput: > 50 requests/second
-- Error rate: < 1%
+### Using Pytest Directly
 
-### 4. Monitoring and Debugging
-
-Real-time monitoring and debugging tools.
-
-**Debug Monitor:**
 ```bash
-python debug_monitor.py --interactive
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_mcp_server.py
+
+# Run with coverage
+pytest --cov=official_mcp_server --cov=mcp_config_manager
+
+# Run specific test class
+pytest tests/test_mcp_server.py::TestListFilesSync
+
+# Run specific test method
+pytest tests/test_mcp_server.py::TestListFilesSync::test_list_files_success
 ```
 
-**Network Monitor:**
+### Using Security Audit Script
+
 ```bash
-node network_monitor.js --interactive
+# Run security audit
+python test_directory_access.py
+
+# Run with custom config
+python test_directory_access.py --config /path/to/config.json
+
+# Save results to file
+python test_directory_access.py --output security_report.json
+
+# Verbose output
+python test_directory_access.py --verbose
 ```
 
-**Features:**
-- Real-time request/response logging
-- Network timing measurements
-- Error tracking and reporting
-- Connection status monitoring
-- Performance metrics collection
+## Test Configuration
 
-## Test Scenarios
+### Pytest Configuration (`pytest.ini`)
 
-### Scenario 1: Valid License Validation
-
-```bash
-# Test valid license key
-python test_mcp_integration.py --test license-validation-valid
+```ini
+[tool:pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+addopts = 
+    -v
+    --tb=short
+    --strict-markers
+    --disable-warnings
+    --cov=.
+    --cov-report=html:htmlcov
+    --cov-report=term-missing
+    --cov-report=xml
+    --cov-fail-under=80
+markers =
+    unit: Unit tests
+    integration: Integration tests
+    security: Security tests
+    slow: Slow running tests
+    mcp_server: MCP server specific tests
+    config: Configuration tests
+    cli: CLI command tests
 ```
 
-**Expected Results:**
-- HTTP 200 response
-- `valid: true` in response
-- Server registration successful
-- Response time < 500ms
+### Test Markers
 
-### Scenario 2: Invalid License Handling
+Tests are automatically marked based on their location and name:
 
+- `@pytest.mark.unit`: Unit tests
+- `@pytest.mark.integration`: Integration tests
+- `@pytest.mark.security`: Security tests
+- `@pytest.mark.slow`: Slow running tests
+- `@pytest.mark.mcp_server`: MCP server specific tests
+- `@pytest.mark.config`: Configuration tests
+
+## Coverage Reporting
+
+The testing system generates comprehensive coverage reports:
+
+### HTML Reports
+- `htmlcov/unit/`: Unit test coverage
+- `htmlcov/integration/`: Integration test coverage
+- `htmlcov/all/`: Combined coverage
+
+### XML Reports
+- `coverage_unit.xml`: Unit test coverage data
+- `coverage_integration.xml`: Integration test coverage data
+- `coverage_all.xml`: Combined coverage data
+
+### Terminal Reports
+Coverage information is displayed in the terminal with missing lines highlighted.
+
+## Code Quality Checks
+
+The testing system includes comprehensive code quality checks:
+
+### Linting (Flake8)
 ```bash
-# Test invalid license key
-python test_mcp_integration.py --test license-validation-invalid
+flake8 official_mcp_server.py mcp_config_manager.py tests/
 ```
 
-**Expected Results:**
-- HTTP 200 response
-- `valid: false` in response
-- Appropriate error message
-- Response time < 500ms
-
-### Scenario 3: Usage Tracking
-
+### Formatting (Black)
 ```bash
-# Test usage tracking
-python test_mcp_integration.py --test usage-tracking
+black --check official_mcp_server.py mcp_config_manager.py tests/
 ```
 
-**Expected Results:**
-- Events transmitted successfully
-- Data stored in backend
-- Real-time metrics updated
-- Quota limits enforced
-
-### Scenario 4: Network Failure Recovery
-
+### Import Sorting (isort)
 ```bash
-# Test network failure handling
-python test_mcp_integration.py --test network-failure
+isort --check-only official_mcp_server.py mcp_config_manager.py tests/
 ```
 
-**Expected Results:**
-- Graceful error handling
-- Proper timeout management
-- Retry mechanisms work
-- System recovers when backend returns
-
-### Scenario 5: Concurrent Users
-
+### Type Checking (MyPy)
 ```bash
-# Test multiple concurrent connections
-python test_mcp_integration.py --concurrent 5 --duration 300
+mypy official_mcp_server.py mcp_config_manager.py
 ```
 
-**Expected Results:**
-- Multiple servers can connect
-- License quotas enforced per server
-- No race conditions
-- Data consistency maintained
-
-## Debugging Tools
-
-### 1. Debug Monitor
-
-Interactive debugging tool with real-time monitoring:
-
+### Security Linting (Bandit)
 ```bash
-python debug_monitor.py --interactive
+bandit -r official_mcp_server.py mcp_config_manager.py
 ```
 
-**Commands:**
-- `status` - Show current status
-- `test <endpoint>` - Test an endpoint
-- `save` - Save debug session
-- `quit` - Exit monitor
-
-### 2. Network Monitor
-
-Network health monitoring with connection tracking:
-
+### Dependency Security (Safety)
 ```bash
-node network_monitor.js --interactive
-```
-
-**Features:**
-- Connection status monitoring
-- Request/response logging
-- Performance metrics
-- Error analysis
-
-### 3. Performance Benchmark
-
-Comprehensive performance testing:
-
-```bash
-python performance_benchmark.py --test-type load --concurrent 10 --duration 60 --verbose
-```
-
-**Test Types:**
-- `load` - Standard load test
-- `stress` - Stress test to find breaking point
-- `endurance` - Long-running stability test
-- `spike` - Spike test for recovery testing
-
-## Test Reports
-
-All tests generate detailed reports in JSON format:
-
-### Integration Test Reports
-- `mcp_integration_test_report_YYYYMMDD_HHMMSS.json`
-- `mcp_simulator_test_report_YYYYMMDD_HHMMSS.json`
-- `mcp_integration_suite_report_YYYYMMDD_HHMMSS.json`
-
-### Performance Reports
-- `performance_benchmark_report_YYYYMMDD_HHMMSS.json`
-
-### Debug Reports
-- `debug_session_YYYYMMDD_HHMMSS.json`
-- `network_monitor_report_YYYYMMDD_HHMMSS.json`
-
-### Test Runner Reports
-- `test_runner_report_YYYYMMDD_HHMMSS.json`
-
-## Verification Checklist
-
-Use the verification checklist to ensure all tests pass:
-
-```bash
-# Check prerequisites
-python test_runner.py --check-prerequisites
-
-# Run quick verification
-python test_runner.py --quick
-
-# Run full integration tests
-python test_runner.py --full
-
-# Run performance tests
-python test_runner.py --performance
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### 1. Backend Connection Failed
-```bash
-# Check if backend is running
-curl http://localhost:3000/api/health
-
-# Check backend logs
-tail -f logs/mcp_server.log
-```
-
-#### 2. License Validation Fails
-```bash
-# Check database connection
-npm run db:studio
-
-# Verify test license exists
-# Check license service configuration
-```
-
-#### 3. Performance Issues
-```bash
-# Monitor system resources
-htop
-iostat -x 1
-
-# Check database performance
-# Monitor network latency
-```
-
-#### 4. Test Scripts Fail
-```bash
-# Install dependencies
-pip install -r requirements.txt
-npm install
-
-# Check file permissions
-chmod +x *.py *.js
-
-# Verify environment variables
-```
-
-### Debug Commands
-
-```bash
-# Verbose test output
-python test_mcp_integration.py --verbose
-
-# Save debug session
-python debug_monitor.py --save-session debug.json
-
-# Network monitoring
-node network_monitor.js --verbose
-
-# Performance profiling
-python performance_benchmark.py --verbose
+safety check
 ```
 
 ## Continuous Integration
@@ -342,84 +333,123 @@ python performance_benchmark.py --verbose
 ### GitHub Actions Example
 
 ```yaml
-name: MCP Integration Tests
+name: Tests
 
 on: [push, pull_request]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10, 3.11, 3.12]
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     
-    - name: Setup Node.js
-      uses: actions/setup-node@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
       with:
-        node-version: '18'
-    
-    - name: Setup Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
+        python-version: ${{ matrix.python-version }}
     
     - name: Install dependencies
       run: |
-        npm install
         pip install -r requirements.txt
-    
-    - name: Start backend
-      run: npm start &
-    
-    - name: Wait for backend
-      run: sleep 10
+        pip install -r requirements-test.txt
     
     - name: Run tests
-      run: python test_runner.py --quick
+      run: python run_tests.py --full
     
-    - name: Upload reports
-      uses: actions/upload-artifact@v2
-      with:
-        name: test-reports
-        path: "*_report_*.json"
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Import Errors**
+   ```
+   Error importing MCPConfigManager: No module named 'mcp_config_manager'
+   ```
+   **Solution**: Ensure you're running tests from the project root directory.
+
+2. **Permission Errors**
+   ```
+   PermissionError: [Errno 13] Permission denied
+   ```
+   **Solution**: Check file permissions and ensure the test user has appropriate access.
+
+3. **Timeout Errors**
+   ```
+   subprocess.TimeoutExpired: Command timed out
+   ```
+   **Solution**: Increase timeout values or optimize slow tests.
+
+4. **Coverage Issues**
+   ```
+   Coverage too low: 75% < 80%
+   ```
+   **Solution**: Add more tests or adjust coverage thresholds.
+
+### Debug Mode
+
+Run tests with debug information:
+
+```bash
+pytest --verbose --tb=long --capture=no
+```
+
+### Test Isolation
+
+Ensure tests don't interfere with each other:
+
+```bash
+pytest --forked  # Run each test in a separate process
 ```
 
 ## Best Practices
 
-### 1. Test Environment
-- Use dedicated test database
-- Set up test license keys
-- Monitor system resources
-- Clean up test data
+### Writing Tests
 
-### 2. Test Execution
-- Run tests in isolated environment
-- Use consistent test data
-- Monitor test execution time
-- Save all test reports
+1. **Use Descriptive Names**: Test names should clearly describe what is being tested
+2. **Arrange-Act-Assert**: Structure tests with clear setup, execution, and verification
+3. **Test Edge Cases**: Include tests for error conditions and boundary values
+4. **Mock External Dependencies**: Use mocks for file system, network, and other external dependencies
+5. **Keep Tests Independent**: Tests should not depend on each other
 
-### 3. Performance Testing
-- Start with low load
-- Gradually increase load
-- Monitor system resources
-- Test under realistic conditions
+### Test Organization
 
-### 4. Debugging
-- Use verbose logging
-- Save debug sessions
-- Monitor network traffic
-- Check system logs
+1. **Group Related Tests**: Use test classes to group related functionality
+2. **Use Fixtures**: Leverage pytest fixtures for common setup
+3. **Mark Tests Appropriately**: Use markers to categorize tests
+4. **Document Test Purpose**: Include docstrings explaining test objectives
+
+### Performance
+
+1. **Use Appropriate Timeouts**: Set reasonable timeouts for long-running tests
+2. **Clean Up Resources**: Ensure proper cleanup in teardown methods
+3. **Parallel Execution**: Use pytest-xdist for parallel test execution
+4. **Skip Slow Tests**: Mark slow tests appropriately
+
+## Contributing
+
+When adding new tests:
+
+1. Follow the existing test structure and naming conventions
+2. Add appropriate test markers
+3. Include comprehensive docstrings
+4. Ensure tests are isolated and repeatable
+5. Update this documentation if adding new test types
 
 ## Support
 
-For issues or questions:
-1. Check the troubleshooting section
-2. Review test reports
-3. Use debugging tools
-4. Check system logs
-5. Contact the development team
+For issues with the testing system:
 
----
+1. Check the troubleshooting section above
+2. Review test logs and error messages
+3. Ensure all dependencies are installed
+4. Verify test environment setup
+5. Check file permissions and paths
 
-**Last Updated:** $(date)
-**Version:** 1.0.0
+The testing system is designed to be comprehensive, reliable, and easy to use. Regular testing ensures the MCP Server Platform maintains high quality and security standards.

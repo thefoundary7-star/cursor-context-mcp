@@ -1,10 +1,18 @@
 import { PrismaClient, License, Server } from '@prisma/client';
-import { generateLicenseKey } from '@/utils/crypto';
-import { 
-  NotFoundError, 
-  ConflictError, 
+import {
+  generateLicenseKey,
+  generateHardwareFingerprint,
+  generateDigitalSignature,
+  verifyDigitalSignature,
+  hash,
+  encrypt,
+  decrypt
+} from '@/utils/crypto';
+import {
+  NotFoundError,
+  ConflictError,
   LicenseValidationError,
-  QuotaExceededError 
+  QuotaExceededError
 } from '@/utils/errors';
 import { 
   LicenseValidationRequest, 
@@ -83,12 +91,67 @@ export class LicenseService {
     }
   }
 
-  // Validate license key
+  // Enhanced license validation with hardware fingerprinting and digital signatures
   static async validateLicense(
-    validationData: LicenseValidationRequest
-  ): Promise<LicenseValidationResponse> {
+    validationData: LicenseValidationRequest & {
+      hardwareFingerprint?: string;
+      signature?: string;
+      clientTime?: number;
+    }
+  ): Promise<LicenseValidationResponse & {
+    signature?: string;
+    serverTime?: number;
+    allowedHardware?: string[];
+  }> {
     try {
-      // Find license
+      // Generate server-side hardware fingerprint if not provided
+      const serverHardwareFingerprint = validationData.hardwareFingerprint || generateHardwareFingerprint();
+
+      // Verify license signature if provided
+      if (validationData.signature && process.env.LICENSE_PUBLIC_KEY) {
+        const dataToVerify = JSON.stringify({
+          licenseKey: validationData.licenseKey,
+          serverId: validationData.serverId,
+          hardwareFingerprint: serverHardwareFingerprint,
+        });
+
+        const isValidSignature = verifyDigitalSignature(
+          dataToVerify,
+          validationData.signature,
+          process.env.LICENSE_PUBLIC_KEY
+        );
+
+        if (!isValidSignature) {
+          logger.warn('Invalid license signature detected', {
+            licenseKey: validationData.licenseKey.substring(0, 8) + '...',
+            serverId: validationData.serverId,
+          });
+          return {
+            valid: false,
+            message: 'Invalid license signature',
+          };
+        }
+      }
+
+      // Check for timing attacks (request too old/too new)
+      if (validationData.clientTime) {
+        const serverTime = Date.now();
+        const timeDiff = Math.abs(serverTime - validationData.clientTime);
+        const maxTimeDiff = 5 * 60 * 1000; // 5 minutes
+
+        if (timeDiff > maxTimeDiff) {
+          logger.warn('License validation timestamp out of range', {
+            licenseKey: validationData.licenseKey.substring(0, 8) + '...',
+            timeDiff,
+          });
+          return {
+            valid: false,
+            message: 'Request timestamp out of valid range',
+          };
+        }
+      }
+
+      // Find license with additional security checks
       const license = await prisma.license.findUnique({
         where: { licenseKey: validationData.licenseKey },
         include: {
@@ -102,6 +165,7 @@ export class LicenseService {
           servers: {
             where: { isActive: true },
           },
+          licenseSettings: true,
         },
       });
 
@@ -136,6 +200,38 @@ export class LicenseService {
         };
       }
 
+      // Hardware fingerprinting validation
+      const licenseSettings = license.licenseSettings;
+      if (licenseSettings?.hardwareBinding) {
+        const allowedFingerprints = licenseSettings.allowedHardwareFingerprints || [];
+
+        if (allowedFingerprints.length > 0) {
+          const hashedFingerprint = hash(serverHardwareFingerprint);
+
+          if (!allowedFingerprints.includes(hashedFingerprint)) {
+            // Check if we can add this hardware (first-time binding)
+            if (allowedFingerprints.length === 0 && licenseSettings.maxHardwareFingerprints > 0) {
+              // Auto-bind first hardware
+              await this.addHardwareFingerprint(license.id, serverHardwareFingerprint);
+              logger.info('Hardware fingerprint auto-bound to license', {
+                licenseId: license.id,
+                fingerprint: hashedFingerprint.substring(0, 8) + '...',
+              });
+            } else {
+              logger.warn('Hardware fingerprint mismatch', {
+                licenseId: license.id,
+                serverId: validationData.serverId,
+                providedFingerprint: hashedFingerprint.substring(0, 8) + '...',
+              });
+              return {
+                valid: false,
+                message: 'Hardware fingerprint not authorized for this license',
+              };
+            }
+          }
+        }
+      }
+
       // Check server quota
       if (license.servers.length >= license.maxServers) {
         return {
@@ -144,51 +240,123 @@ export class LicenseService {
         };
       }
 
-      // Find or create server
+      // Enhanced server registration security
+      const existingServerWithSameId = await prisma.server.findFirst({
+        where: {
+          serverId: validationData.serverId,
+          licenseId: { not: license.id },
+          isActive: true,
+        },
+      });
+
+      if (existingServerWithSameId) {
+        logger.warn('Server ID already registered to different license', {
+          serverId: validationData.serverId,
+          existingLicenseId: existingServerWithSameId.licenseId,
+          requestedLicenseId: license.id,
+        });
+        return {
+          valid: false,
+          message: 'Server ID already registered to another license',
+        };
+      }
+
+      // Find or create server with enhanced security
       let server = await prisma.server.findUnique({
         where: { serverId: validationData.serverId },
       });
 
       if (!server) {
-        // Create new server
+        // Create new server with hardware fingerprint
         server = await prisma.server.create({
           data: {
             licenseId: license.id,
             serverId: validationData.serverId,
             name: validationData.serverName,
             version: validationData.serverVersion,
+            hardwareFingerprint: hash(serverHardwareFingerprint),
+            registeredAt: new Date(),
           },
         });
 
-        logger.info('New server registered', { 
-          serverId: server.id, 
-          licenseId: license.id 
+        logger.info('New server registered with hardware fingerprint', {
+          serverId: server.id,
+          licenseId: license.id,
+          fingerprint: hash(serverHardwareFingerprint).substring(0, 8) + '...',
         });
       } else {
-        // Update existing server
+        // Update existing server and verify hardware fingerprint
+        const storedFingerprint = server.hardwareFingerprint;
+        const currentFingerprint = hash(serverHardwareFingerprint);
+
+        if (storedFingerprint && storedFingerprint !== currentFingerprint) {
+          logger.warn('Hardware fingerprint mismatch for existing server', {
+            serverId: server.id,
+            licenseId: license.id,
+            stored: storedFingerprint.substring(0, 8) + '...',
+            current: currentFingerprint.substring(0, 8) + '...',
+          });
+
+          // Allow update if hardware binding is not strict
+          if (!licenseSettings?.strictHardwareBinding) {
+            server.hardwareFingerprint = currentFingerprint;
+          } else {
+            return {
+              valid: false,
+              message: 'Hardware fingerprint mismatch - strict binding enabled',
+            };
+          }
+        }
+
         server = await prisma.server.update({
           where: { id: server.id },
           data: {
             name: validationData.serverName,
             version: validationData.serverVersion,
+            hardwareFingerprint: server.hardwareFingerprint || currentFingerprint,
             lastSeen: new Date(),
             isActive: true,
           },
         });
 
-        logger.info('Server updated', { 
-          serverId: server.id, 
-          licenseId: license.id 
+        logger.info('Server updated with security validation', {
+          serverId: server.id,
+          licenseId: license.id,
         });
       }
 
+      // Generate digital signature for response
+      let responseSignature: string | undefined;
+      if (process.env.LICENSE_PRIVATE_KEY) {
+        const responseData = JSON.stringify({
+          licenseKey: validationData.licenseKey,
+          serverId: validationData.serverId,
+          serverTime: Date.now(),
+          valid: true,
+        });
+
+        try {
+          responseSignature = generateDigitalSignature(responseData, process.env.LICENSE_PRIVATE_KEY);
+        } catch (error) {
+          logger.error('Failed to generate response signature', {
+            error: (error as Error).message,
+            licenseId: license.id,
+          });
+        }
+      }
+
       // Remove sensitive data from license
-      const { userId, ...licenseWithoutUserId } = license;
+      const { userId, licenseSettings: settings, ...licenseWithoutSensitiveData } = license;
 
       return {
         valid: true,
-        license: licenseWithoutUserId,
+        license: licenseWithoutSensitiveData,
         server,
+        signature: responseSignature,
+        serverTime: Date.now(),
+        allowedHardware: settings?.allowedHardwareFingerprints?.map(fp =>
+          fp.substring(0, 8) + '...'
+        ),
       };
     } catch (error) {
       logger.error('License validation failed', { 
@@ -455,6 +623,347 @@ export class LicenseService {
         licenseId 
       });
       throw error;
+    }
+  }
+
+  // Add hardware fingerprint to license
+  static async addHardwareFingerprint(
+    licenseId: string,
+    hardwareFingerprint: string,
+    userId?: string
+  ): Promise<void> {
+    try {
+      const license = await prisma.license.findFirst({
+        where: {
+          id: licenseId,
+          ...(userId && { userId }),
+        },
+        include: {
+          licenseSettings: true,
+        },
+      });
+
+      if (!license) {
+        throw new NotFoundError('License not found');
+      }
+
+      const hashedFingerprint = hash(hardwareFingerprint);
+      const currentFingerprints = license.licenseSettings?.allowedHardwareFingerprints || [];
+      const maxFingerprints = license.licenseSettings?.maxHardwareFingerprints || 3;
+
+      if (currentFingerprints.includes(hashedFingerprint)) {
+        return; // Already exists
+      }
+
+      if (currentFingerprints.length >= maxFingerprints) {
+        throw new ConflictError(`Maximum ${maxFingerprints} hardware fingerprints allowed`);
+      }
+
+      const updatedFingerprints = [...currentFingerprints, hashedFingerprint];
+
+      await prisma.licenseSettings.upsert({
+        where: { licenseId },
+        update: {
+          allowedHardwareFingerprints: updatedFingerprints,
+        },
+        create: {
+          licenseId,
+          hardwareBinding: true,
+          allowedHardwareFingerprints: updatedFingerprints,
+          maxHardwareFingerprints: maxFingerprints,
+        },
+      });
+
+      logger.info('Hardware fingerprint added to license', {
+        licenseId,
+        fingerprint: hashedFingerprint.substring(0, 8) + '...',
+        totalFingerprints: updatedFingerprints.length,
+      });
+    } catch (error) {
+      logger.error('Add hardware fingerprint failed', {
+        error: (error as Error).message,
+        licenseId,
+      });
+      throw error;
+    }
+  }
+
+  // Remove hardware fingerprint from license
+  static async removeHardwareFingerprint(
+    licenseId: string,
+    hardwareFingerprint: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const license = await prisma.license.findFirst({
+        where: {
+          id: licenseId,
+          userId,
+        },
+        include: {
+          licenseSettings: true,
+        },
+      });
+
+      if (!license) {
+        throw new NotFoundError('License not found');
+      }
+
+      const hashedFingerprint = hash(hardwareFingerprint);
+      const currentFingerprints = license.licenseSettings?.allowedHardwareFingerprints || [];
+      const updatedFingerprints = currentFingerprints.filter(fp => fp !== hashedFingerprint);
+
+      await prisma.licenseSettings.update({
+        where: { licenseId },
+        data: {
+          allowedHardwareFingerprints: updatedFingerprints,
+        },
+      });
+
+      logger.info('Hardware fingerprint removed from license', {
+        licenseId,
+        fingerprint: hashedFingerprint.substring(0, 8) + '...',
+        remainingFingerprints: updatedFingerprints.length,
+      });
+    } catch (error) {
+      logger.error('Remove hardware fingerprint failed', {
+        error: (error as Error).message,
+        licenseId,
+      });
+      throw error;
+    }
+  }
+
+  // Get license settings including hardware fingerprints
+  static async getLicenseSettings(licenseId: string, userId: string): Promise<any> {
+    try {
+      const license = await prisma.license.findFirst({
+        where: {
+          id: licenseId,
+          userId,
+        },
+        include: {
+          licenseSettings: true,
+        },
+      });
+
+      if (!license) {
+        throw new NotFoundError('License not found');
+      }
+
+      const settings = license.licenseSettings;
+      if (!settings) {
+        return {
+          hardwareBinding: false,
+          strictHardwareBinding: false,
+          maxHardwareFingerprints: 3,
+          allowedHardwareFingerprints: [],
+          offlineCacheDuration: 24 * 60 * 60 * 1000, // 24 hours
+        };
+      }
+
+      return {
+        hardwareBinding: settings.hardwareBinding,
+        strictHardwareBinding: settings.strictHardwareBinding,
+        maxHardwareFingerprints: settings.maxHardwareFingerprints,
+        allowedHardwareFingerprints: settings.allowedHardwareFingerprints?.map(fp =>
+          fp.substring(0, 8) + '...'
+        ),
+        offlineCacheDuration: settings.offlineCacheDuration,
+      };
+    } catch (error) {
+      logger.error('Get license settings failed', {
+        error: (error as Error).message,
+        licenseId,
+      });
+      throw error;
+    }
+  }
+
+  // Update license settings
+  static async updateLicenseSettings(
+    licenseId: string,
+    userId: string,
+    settings: {
+      hardwareBinding?: boolean;
+      strictHardwareBinding?: boolean;
+      maxHardwareFingerprints?: number;
+      offlineCacheDuration?: number;
+    }
+  ): Promise<void> {
+    try {
+      const license = await prisma.license.findFirst({
+        where: {
+          id: licenseId,
+          userId,
+        },
+      });
+
+      if (!license) {
+        throw new NotFoundError('License not found');
+      }
+
+      await prisma.licenseSettings.upsert({
+        where: { licenseId },
+        update: settings,
+        create: {
+          licenseId,
+          ...settings,
+        },
+      });
+
+      logger.info('License settings updated', {
+        licenseId,
+        settings,
+      });
+    } catch (error) {
+      logger.error('Update license settings failed', {
+        error: (error as Error).message,
+        licenseId,
+      });
+      throw error;
+    }
+  }
+
+  // Generate offline license cache
+  static async generateOfflineCache(licenseKey: string): Promise<{
+    cache: string;
+    expiresAt: Date;
+    signature: string;
+  }> {
+    try {
+      const license = await prisma.license.findUnique({
+        where: { licenseKey },
+        include: {
+          licenseSettings: true,
+          user: {
+            select: {
+              id: true,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      if (!license) {
+        throw new NotFoundError('License not found');
+      }
+
+      const cacheDuration = license.licenseSettings?.offlineCacheDuration || 24 * 60 * 60 * 1000;
+      const expiresAt = new Date(Date.now() + cacheDuration);
+
+      const cacheData = {
+        licenseKey,
+        licenseId: license.id,
+        plan: license.plan,
+        maxServers: license.maxServers,
+        isActive: license.isActive,
+        userActive: license.user.isActive,
+        expiresAt: license.expiresAt,
+        cacheExpiresAt: expiresAt,
+        hardwareBinding: license.licenseSettings?.hardwareBinding || false,
+        allowedHardwareFingerprints: license.licenseSettings?.allowedHardwareFingerprints || [],
+      };
+
+      const encryptedCache = encrypt(JSON.stringify(cacheData), process.env.LICENSE_CACHE_KEY!);
+      let signature = '';
+
+      if (process.env.LICENSE_PRIVATE_KEY) {
+        signature = generateDigitalSignature(encryptedCache, process.env.LICENSE_PRIVATE_KEY);
+      }
+
+      logger.info('Offline license cache generated', {
+        licenseId: license.id,
+        expiresAt,
+      });
+
+      return {
+        cache: encryptedCache,
+        expiresAt,
+        signature,
+      };
+    } catch (error) {
+      logger.error('Generate offline cache failed', {
+        error: (error as Error).message,
+        licenseKey: licenseKey.substring(0, 8) + '...',
+      });
+      throw error;
+    }
+  }
+
+  // Validate offline license cache
+  static async validateOfflineCache(
+    cache: string,
+    signature: string,
+    hardwareFingerprint?: string
+  ): Promise<{ valid: boolean; data?: any; message?: string }> {
+    try {
+      // Verify signature first
+      if (process.env.LICENSE_PUBLIC_KEY && signature) {
+        const isValidSignature = verifyDigitalSignature(cache, signature, process.env.LICENSE_PUBLIC_KEY);
+        if (!isValidSignature) {
+          return {
+            valid: false,
+            message: 'Invalid cache signature',
+          };
+        }
+      }
+
+      // Decrypt cache
+      const decryptedData = decrypt(cache, process.env.LICENSE_CACHE_KEY!);
+      const cacheData = JSON.parse(decryptedData);
+
+      // Check cache expiration
+      if (new Date() > new Date(cacheData.cacheExpiresAt)) {
+        return {
+          valid: false,
+          message: 'Offline cache expired',
+        };
+      }
+
+      // Check license expiration
+      if (cacheData.expiresAt && new Date() > new Date(cacheData.expiresAt)) {
+        return {
+          valid: false,
+          message: 'License expired',
+        };
+      }
+
+      // Check license and user status
+      if (!cacheData.isActive || !cacheData.userActive) {
+        return {
+          valid: false,
+          message: 'License or user deactivated',
+        };
+      }
+
+      // Check hardware fingerprint if binding is enabled
+      if (cacheData.hardwareBinding && hardwareFingerprint) {
+        const hashedFingerprint = hash(hardwareFingerprint);
+        if (!cacheData.allowedHardwareFingerprints.includes(hashedFingerprint)) {
+          return {
+            valid: false,
+            message: 'Hardware fingerprint not authorized',
+          };
+        }
+      }
+
+      logger.info('Offline cache validation successful', {
+        licenseId: cacheData.licenseId,
+      });
+
+      return {
+        valid: true,
+        data: cacheData,
+      };
+    } catch (error) {
+      logger.error('Offline cache validation failed', {
+        error: (error as Error).message,
+      });
+      return {
+        valid: false,
+        message: 'Cache validation failed',
+      };
     }
   }
 }

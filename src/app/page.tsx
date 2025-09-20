@@ -1,25 +1,25 @@
-import { redirect } from 'next/navigation'
-import { Layout } from '@/components/layout/layout'
-import { LoginForm } from '@/components/auth/login-form'
+import { HeroSection } from '@/components/landing/hero-section'
+import { FeaturesSection } from '@/components/landing/features-section'
+import { PricingSection } from '@/components/landing/pricing-section'
+import { TestimonialsSection } from '@/components/landing/testimonials-section'
+import { DemoSection } from '@/components/landing/demo-section'
+import { CTASection } from '@/components/landing/cta-section'
+import { Footer } from '@/components/landing/footer'
+import { LandingHeader } from '@/components/landing/header'
 
-export default function HomePage() {
-  // This will be handled by middleware or auth check
+export default function LandingPage() {
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="h-16 w-16 rounded-full bg-primary mx-auto mb-4 flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary-foreground">M</span>
-            </div>
-            <h1 className="text-3xl font-bold">Welcome to MCP SaaS</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your MCP server subscriptions and licenses
-            </p>
-          </div>
-          <LoginForm />
-        </div>
-      </div>
-    </Layout>
+    <div className="min-h-screen bg-white">
+      <LandingHeader />
+      <main>
+        <HeroSection />
+        <FeaturesSection />
+        <DemoSection />
+        <PricingSection />
+        <TestimonialsSection />
+        <CTASection />
+      </main>
+      <Footer />
+    </div>
   )
 }

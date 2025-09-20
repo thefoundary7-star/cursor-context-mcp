@@ -1,0 +1,56 @@
+{
+  "watchedDirectories": [
+    {
+      "path": "/home/user/projects/my-project",
+      "enabled": true,
+      "maxFileSize": "10MB",
+      "excludePatterns": [
+        ".env*",
+        "node_modules",
+        ".git",
+        "__pycache__",
+        "*.pyc",
+        "*.log",
+        "dist",
+        "build"
+      ],
+      "includeGitignore": true,
+      "lastAccessed": null
+    },
+    {
+      "path": "/home/user/documents/work",
+      "enabled": true,
+      "maxFileSize": "5MB",
+      "excludePatterns": [
+        "*.tmp",
+        "*.temp",
+        ".DS_Store",
+        "Thumbs.db"
+      ],
+      "includeGitignore": false,
+      "lastAccessed": null
+    }
+  ],
+  "globalExcludePatterns": [
+    ".env*",
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "*.pyc",
+    "*.log",
+    "*.tmp",
+    "*.temp",
+    ".DS_Store",
+    "Thumbs.db",
+    "*.swp",
+    "*.swo",
+    "*.bak",
+    "*.backup"
+  ],
+  "maxFileSize": "10MB",
+  "enabled": true,
+  "auditLogging": true,
+  "securityMode": "moderate",
+  "configVersion": "2.0.0",
+  "lastModified": "2024-01-15T10:30:00.000Z"
+}
