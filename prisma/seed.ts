@@ -1,8 +1,29 @@
-import { PrismaClient, UserRole, SubscriptionPlan, SubscriptionStatus, LicensePlan } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();
+
+// String constants for enum values
+const UserRole = {
+  USER: 'USER',
+  ADMIN: 'ADMIN',
+  SUPER_ADMIN: 'SUPER_ADMIN'
+} as const;
+
+const SubscriptionTier = {
+  FREE: 'FREE',
+  PRO: 'PRO',
+  ENTERPRISE: 'ENTERPRISE'
+} as const;
+
+const SubscriptionStatus = {
+  ACTIVE: 'ACTIVE',
+  CANCELED: 'CANCELED',
+  PAST_DUE: 'PAST_DUE',
+  TRIALING: 'TRIALING',
+  UNPAID: 'UNPAID'
+} as const;
 
 // Generate a secure license key
 function generateLicenseKey(): string {
@@ -10,260 +31,146 @@ function generateLicenseKey(): string {
   for (let i = 0; i < 3; i++) {
     segments.push(crypto.randomBytes(4).toString('hex').toUpperCase());
   }
-  return `MCP-${segments.join('-')}`;
-}
-
-// Generate a secure API key
-function generateApiKey(): string {
-  return `mcp_${crypto.randomBytes(32).toString('hex')}`;
+  return `FILEBRIDGE-${segments.join('-')}`;
 }
 
 async function main() {
   console.log('🌱 Starting database seeding...');
 
-  // Create admin user
-  const adminPassword = await bcrypt.hash('admin123!', 12);
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@mcp-saas.com' },
-    update: {},
-    create: {
-      email: 'admin@mcp-saas.com',
-      password: adminPassword,
-      firstName: 'Admin',
-      lastName: 'User',
-      company: 'MCP SaaS',
-      role: UserRole.SUPER_ADMIN,
-      isActive: true,
-    },
-  });
-
-  console.log('✅ Admin user created:', admin.email);
-
-  // Create demo users
-  const demoUsers = [
+  // Create test users
+  const testUsers = [
     {
-      email: 'demo@example.com',
-      firstName: 'Demo',
-      lastName: 'User',
-      company: 'Demo Company',
-      role: UserRole.USER,
+      email: 'admin@filebridge.dev',
+      role: UserRole.ADMIN,
+      name: 'Admin User',
+      password: await bcrypt.hash('admin123', 10)
     },
     {
-      email: 'enterprise@example.com',
-      firstName: 'Enterprise',
-      lastName: 'User',
-      company: 'Enterprise Corp',
+      email: 'free@filebridge.dev',
       role: UserRole.USER,
+      name: 'Free User',
+      password: await bcrypt.hash('free123', 10)
     },
+    {
+      email: 'pro@filebridge.dev',
+      role: UserRole.USER,
+      name: 'Pro User',
+      password: await bcrypt.hash('pro123', 10)
+    }
   ];
 
-  for (const userData of demoUsers) {
-    const password = await bcrypt.hash('demo123!', 12);
+  // Create users
+  for (const userData of testUsers) {
     const user = await prisma.user.upsert({
       where: { email: userData.email },
       update: {},
       create: {
-        ...userData,
-        password,
+        email: userData.email,
+        role: userData.role,
+        name: userData.name,
+        password: userData.password,
         isActive: true,
-      },
-    });
-
-    console.log('✅ Demo user created:', user.email);
-
-    // Create subscriptions for demo users
-    const subscription = await prisma.subscription.create({
-      data: {
-        userId: user.id,
-        plan: userData.email === 'enterprise@example.com' ? SubscriptionPlan.ENTERPRISE : SubscriptionPlan.PRO,
-        status: SubscriptionStatus.ACTIVE,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-        trialStart: new Date(),
-        trialEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days trial
-      },
-    });
-
-    console.log('✅ Subscription created for:', user.email);
-
-    // Create licenses for demo users
-    const license = await prisma.license.create({
-      data: {
-        userId: user.id,
-        licenseKey: generateLicenseKey(),
-        name: `${userData.company} License`,
-        description: `Production license for ${userData.company}`,
-        plan: userData.email === 'enterprise@example.com' ? LicensePlan.ENTERPRISE : LicensePlan.PRO,
-        maxServers: userData.email === 'enterprise@example.com' ? 100 : 10,
-        isActive: true,
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
-        subscriptionId: subscription.id,
-      },
-    });
-
-    console.log('✅ License created for:', user.email, 'Key:', license.licenseKey);
-
-    // Create API keys for demo users
-    const apiKey = await prisma.apiKey.create({
-      data: {
-        userId: user.id,
-        name: 'Default API Key',
-        keyHash: await bcrypt.hash(generateApiKey(), 12),
-        permissions: {
-          read: true,
-          write: true,
-          admin: userData.email === 'enterprise@example.com',
-        },
-        isActive: true,
-      },
-    });
-
-    console.log('✅ API key created for:', user.email);
-
-    // Create sample servers
-    const servers = [
-      {
-        serverId: `server-${crypto.randomUUID()}`,
-        name: 'Production Server',
-        version: '1.0.0',
-        isActive: true,
-      },
-      {
-        serverId: `server-${crypto.randomUUID()}`,
-        name: 'Development Server',
-        version: '1.0.0',
-        isActive: true,
-      },
-    ];
-
-    for (const serverData of servers) {
-      const server = await prisma.server.create({
-        data: {
-          ...serverData,
-          licenseId: license.id,
-          lastSeen: new Date(),
-        },
-      });
-
-      console.log('✅ Server created:', server.name);
-
-      // Create sample analytics data
-      const analyticsEvents = [
-        {
-          eventType: 'SERVER_START' as const,
-          eventData: { serverId: server.serverId, timestamp: new Date() },
-          metadata: { version: server.version },
-        },
-        {
-          eventType: 'REQUEST_COUNT' as const,
-          eventData: { count: Math.floor(Math.random() * 1000) },
-          metadata: { endpoint: '/api/health' },
-        },
-        {
-          eventType: 'HEARTBEAT' as const,
-          eventData: { status: 'healthy' },
-          metadata: { uptime: Math.floor(Math.random() * 86400) },
-        },
-      ];
-
-      for (const event of analyticsEvents) {
-        await prisma.analytics.create({
-          data: {
-            userId: user.id,
-            licenseId: license.id,
-            serverId: server.id,
-            ...event,
-            timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in last 7 days
-          },
-        });
+        emailVerified: new Date()
       }
-
-      // Create sample usage data
-      await prisma.usage.create({
-        data: {
-          userId: user.id,
-          licenseId: license.id,
-          serverId: server.id,
-          operationType: 'api_call',
-          count: Math.floor(Math.random() * 10000),
-          timestamp: new Date(),
-          billingPeriod: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // First day of current month
-          metadata: {
-            endpoint: '/api/analytics',
-            responseTime: Math.random() * 100,
-          },
-        },
-      });
-    }
-
-    console.log('✅ Sample data created for:', user.email);
-  }
-
-  // Create sample invoices
-  const demoUser = await prisma.user.findUnique({
-    where: { email: 'demo@example.com' },
-  });
-
-  if (demoUser) {
-    const subscription = await prisma.subscription.findFirst({
-      where: { userId: demoUser.id },
     });
 
-    if (subscription) {
-      await prisma.invoice.create({
-        data: {
-          userId: demoUser.id,
-          stripeInvoiceId: `in_${crypto.randomUUID()}`,
-          subscriptionId: subscription.id,
-          amount: 2900, // $29.00
-          currency: 'usd',
-          status: 'PAID' as any,
-          paidAt: new Date(),
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          invoiceUrl: 'https://invoice.stripe.com/i/acct_123/inv_456',
-          hostedInvoiceUrl: 'https://invoice.stripe.com/i/acct_123/inv_456',
-        },
+    console.log(`✅ Created user: ${user.email}`);
+
+    // Create licenses for users
+    let tier: string = SubscriptionTier.FREE;
+    if (userData.email.includes('pro')) tier = SubscriptionTier.PRO;
+    if (userData.email.includes('admin')) tier = SubscriptionTier.ENTERPRISE;
+
+    const licenseKey = userData.email === 'free@filebridge.dev' 
+      ? 'FILEBRIDGE-FREE-TEST1234'
+      : generateLicenseKey();
+
+    const license = await prisma.license.upsert({
+      where: { licenseKey },
+      update: {},
+      create: {
+        licenseKey,
+        userId: user.id,
+        name: `FileBridge ${tier}`,
+        tier,
+        maxServers: tier === SubscriptionTier.FREE ? 1 : 5,
+        isActive: true
+      }
+    });
+
+    console.log(`✅ Created license: ${license.licenseKey} (${tier})`);
+
+    // Create subscription for paid users
+    if (tier !== SubscriptionTier.FREE) {
+      await prisma.subscription.upsert({
+        where: { licenseKey },
+        update: {},
+        create: {
+          userId: user.id,
+          dodoSubscriptionId: `sub_${crypto.randomUUID()}`,
+          dodoCustomerId: `cus_${crypto.randomUUID()}`,
+          dodoProductId: tier === SubscriptionTier.PRO ? 'pdt_pro' : 'pdt_enterprise',
+          tier,
+          status: SubscriptionStatus.ACTIVE,
+          licenseKey,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          metadata: JSON.stringify({ source: 'seed' })
+        }
       });
 
-      console.log('✅ Sample invoice created');
+      console.log(`✅ Created subscription for ${user.email}`);
+    }
+
+    // Create sample daily usage for free user
+    if (tier === SubscriptionTier.FREE) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      await prisma.dailyUsage.upsert({
+        where: {
+          licenseId_date: {
+            licenseId: license.id,
+            date: today
+          }
+        },
+        update: {},
+        create: {
+          licenseId: license.id,
+          date: today,
+          callCount: 5 // Show some usage
+        }
+      });
+
+      console.log(`✅ Created daily usage for free user`);
     }
   }
 
-  // Create webhook events for testing
+  // Create some sample webhook events
   await prisma.webhookEvent.create({
     data: {
-      eventType: 'customer.subscription.created',
-      eventId: `evt_${crypto.randomUUID()}`,
+      dodoEventId: 'evt_test_123',
+      eventType: 'subscription.created',
       processed: true,
-      data: {
-        id: 'sub_123',
-        customer: 'cus_123',
-        status: 'active',
-        plan: { id: 'price_123', name: 'Pro Plan' },
-      },
-    },
+      data: JSON.stringify({
+        id: 'sub_test',
+        customer: 'cus_test',
+        status: 'active'
+      }),
+      processedAt: new Date()
+    }
   });
 
-  console.log('✅ Sample webhook event created');
+  console.log('✅ Created sample webhook event');
 
   console.log('🎉 Database seeding completed successfully!');
   console.log('');
-  console.log('📋 Created data:');
-  console.log('  - 1 Admin user (admin@mcp-saas.com / admin123!)');
-  console.log('  - 2 Demo users (demo@example.com / demo123!)');
-  console.log('  - 2 Active subscriptions');
-  console.log('  - 2 Licenses with API keys');
-  console.log('  - 4 Sample servers');
-  console.log('  - Sample analytics and usage data');
-  console.log('  - Sample invoices and webhook events');
+  console.log('Test accounts created:');
+  console.log('📧 admin@filebridge.dev (password: admin123) - Enterprise');
+  console.log('📧 pro@filebridge.dev (password: pro123) - Pro');  
+  console.log('📧 free@filebridge.dev (password: free123) - Free');
   console.log('');
-  console.log('🔑 License Keys:');
-  const licenses = await prisma.license.findMany({
-    include: { user: true },
-  });
-  licenses.forEach(license => {
-    console.log(`  ${license.user.email}: ${license.licenseKey}`);
-  });
+  console.log('🔑 Test license key: FILEBRIDGE-FREE-TEST1234');
 }
 
 main()

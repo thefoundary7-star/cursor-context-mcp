@@ -6,31 +6,33 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  password         String
-  firstName        String?
-  lastName         String?
-  company          String?
-  role             UserRole @default(USER)
-  isActive         Boolean  @default(true)
-  stripeCustomerId String?  @unique
-  trialEndsAt      DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String?
+  name          String?
+  firstName     String?
+  lastName      String?
+  company       String?
+  role          String   @default("USER") // Changed from enum to string
+  isActive      Boolean  @default(true)
+  emailVerified DateTime?
+  trialEndsAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  subscriptions Subscription[]
-  licenses      License[]
-  analytics     Analytics[]
-  apiKeys       ApiKey[]
-  usage         Usage[]
-  invoices      Invoice[]
+  subscriptions    Subscription[]
+  licenses         License[]
+  analytics        Analytics[]
+  apiKeys          ApiKey[]
+  usage            Usage[]
+  payments         Payment[]
+  checkoutSessions CheckoutSession[]
 
   @@map("users")
 }
@@ -38,38 +40,76 @@ model User {
 model Subscription {
   id                    String            @id @default(cuid())
   userId                String
-  stripeCustomerId      String?           @unique
-  stripeSubscriptionId  String?           @unique
-  stripePriceId         String?
-  plan                  SubscriptionPlan
-  status                SubscriptionStatus
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  cancelAtPeriodEnd     Boolean           @default(false)
-  trialStart            DateTime?
+  dodoSubscriptionId    String            @unique
+  dodoCustomerId        String
+  dodoProductId         String
+  tier                  String            // Changed from enum to string
+  status                String            // Changed from enum to string
+  licenseKey            String?           @unique
+  currentPeriodStart    DateTime
+  currentPeriodEnd      DateTime
   trialEnd              DateTime?
-  cancelAt              DateTime?
   canceledAt            DateTime?
-  endedAt               DateTime?
-  metadata              Json?
+  cancellationReason    String?
+  lastPaymentAt         DateTime?
+  metadata              String?           // Changed from Json to String
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  licenses License[]
-  invoices Invoice[]
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
 
   @@map("subscriptions")
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  dodoPaymentId    String        @unique
+  subscriptionId   String?
+  userId           String?
+  amount           Int           // Amount in cents
+  currency         String        @default("USD")
+  status           String        // Changed from enum to string
+  failureReason    String?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [dodoSubscriptionId], onDelete: SetNull)
+
+  @@map("payments")
+}
+
+model CheckoutSession {
+  id            String    @id @default(cuid())
+  dodoSessionId String    @unique
+  userId        String
+  customerEmail String
+  plan          String
+  amount        Int
+  currency      String    @default("USD")
+  paymentStatus String    @default("pending")
+  subscriptionId String?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("checkout_sessions")
 }
 
 model License {
   id          String      @id @default(cuid())
   userId      String
   licenseKey  String      @unique
-  name        String
+  name        String?
   description String?
-  plan        LicensePlan
+  tier        String      // Changed from enum to string
   maxServers  Int         @default(1)
   isActive    Boolean     @default(true)
   expiresAt   DateTime?
@@ -79,10 +119,10 @@ model License {
 
   // Relations
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   servers     Server[]
   analytics   Analytics[]
   usage       Usage[]
+  dailyUsage  DailyUsage[]
 
   @@map("licenses")
 }
@@ -111,9 +151,9 @@ model Analytics {
   userId      String
   licenseId   String?
   serverId    String?
-  eventType   AnalyticsEventType
-  eventData   Json?
-  metadata    Json?
+  eventType   String      // Changed from enum to string
+  eventData   String?     // Changed from Json to String
+  metadata    String?     // Changed from Json to String
   timestamp   DateTime    @default(now())
 
   // Relations
@@ -129,7 +169,7 @@ model ApiKey {
   userId      String
   name        String
   keyHash     String   @unique
-  permissions Json?
+  permissions String?  // Changed from Json to String
   lastUsed    DateTime?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -149,7 +189,7 @@ model Usage {
   operationType String   // e.g., "api_call", "request", "feature_usage"
   count         Int      @default(1)
   timestamp     DateTime @default(now())
-  metadata      Json?
+  metadata      String?  // Changed from Json to String
   billingPeriod DateTime // Start of billing period (monthly)
 
   // Relations
@@ -157,88 +197,45 @@ model Usage {
   license License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
   server  Server?  @relation(fields: [serverId], references: [id], onDelete: SetNull)
 
+  @@index([licenseId, timestamp]) // For efficient daily usage queries
   @@map("usage")
 }
 
-model Invoice {
-  id                String   @id @default(cuid())
-  userId            String
-  stripeInvoiceId   String   @unique
-  subscriptionId    String?
-  amount            Int      // Amount in cents
-  currency          String   @default("usd")
-  status            InvoiceStatus
-  paidAt            DateTime?
-  dueDate           DateTime?
-  invoiceUrl        String?
-  hostedInvoiceUrl  String?
-  pdfUrl            String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+model DailyUsage {
+  id        String   @id @default(cuid())
+  licenseId String
+  date      DateTime // Date component only (YYYY-MM-DD)
+  callCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  license   License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
 
-  @@map("invoices")
+  @@unique([licenseId, date])
+  @@map("daily_usage")
 }
 
 model WebhookEvent {
-  id          String   @id @default(cuid())
-  eventType   String
-  eventId     String   @unique
-  processed   Boolean  @default(false)
-  data        Json
-  createdAt   DateTime @default(now())
+  id           String    @id @default(cuid())
+  dodoEventId  String    @unique
+  eventType    String
+  processed    Boolean   @default(false)
+  attempts     Int       @default(0)
+  data         String    // Changed from Json to String
+  error        String?
+  processedAt  DateTime?
+  createdAt    DateTime  @default(now())
 
   @@map("webhook_events")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-  SUPER_ADMIN
-}
+model SyncLog {
+  id        String   @id @default(cuid())
+  type      String   // webhook, poll, manual
+  status    String   // success, error
+  details   String?
+  createdAt DateTime @default(now())
 
-enum SubscriptionPlan {
-  FREE
-  BASIC
-  PRO
-  ENTERPRISE
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELED
-  INCOMPLETE
-  INCOMPLETE_EXPIRED
-  PAST_DUE
-  TRIALING
-  UNPAID
-}
-
-enum LicensePlan {
-  FREE
-  BASIC
-  PRO
-  ENTERPRISE
-}
-
-enum AnalyticsEventType {
-  SERVER_START
-  SERVER_STOP
-  REQUEST_COUNT
-  ERROR_COUNT
-  FEATURE_USAGE
-  QUOTA_EXCEEDED
-  LICENSE_VALIDATION
-  HEARTBEAT
-}
-
-enum InvoiceStatus {
-  DRAFT
-  OPEN
-  PAID
-  VOID
-  UNCOLLECTIBLE
+  @@map("sync_logs")
 }

@@ -1,27 +1,21 @@
 import { Router, Request, Response } from 'express';
-import Stripe from 'stripe';
-import { stripeConfig } from '@/utils/config';
-import { BillingService } from '@/services/billingService';
+import { dodoWebhookHandler } from '@/services/dodo/webhookHandler';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { ApiResponse } from '@/types';
-import { verifyHmacSignature } from '@/utils/crypto';
-import logger from '@/utils/logger';
+import { logger } from '@/utils/logger';
 
 const router = Router();
-const stripe = new Stripe(stripeConfig.secretKey, {
-  apiVersion: '2023-10-16',
-});
 
-// Enhanced webhook signature validation middleware
-const validateWebhookSignature = (req: Request, res: Response, next: any) => {
-  const sig = req.headers['stripe-signature'] as string;
-  const webhookSecret = stripeConfig.webhookSecret;
+// Middleware to validate Dodo webhook signature
+const validateDodoWebhookSignature = (req: Request, res: Response, next: any) => {
+  const sig = req.headers['dodo-signature'] as string;
+  const webhookSecret = process.env.DODO_WEBHOOK_SECRET;
   const timestamp = req.headers['x-timestamp'] as string;
   const userAgent = req.headers['user-agent'] as string;
 
   // Security checks
   if (!webhookSecret) {
-    logger.error('Stripe webhook secret not configured');
+    logger.error('Dodo webhook secret not configured');
     return res.status(500).json({
       success: false,
       error: 'Webhook secret not configured',
@@ -59,8 +53,8 @@ const validateWebhookSignature = (req: Request, res: Response, next: any) => {
     }
   }
 
-  // Verify User-Agent contains Stripe
-  if (!userAgent || !userAgent.includes('Stripe')) {
+  // Verify User-Agent contains Dodo
+  if (userAgent && !userAgent.includes('Dodo')) {
     logger.warn('Suspicious webhook user agent', {
       ip: req.ip,
       userAgent,
@@ -70,85 +64,32 @@ const validateWebhookSignature = (req: Request, res: Response, next: any) => {
   next();
 };
 
-// POST /api/webhooks/stripe
-router.post('/stripe', validateWebhookSignature, asyncHandler(async (req: Request, res: Response) => {
-  const sig = req.headers['stripe-signature'] as string;
-  const webhookSecret = stripeConfig.webhookSecret!;
-
-  let event: Stripe.Event;
-
+// POST /api/webhooks/dodo
+router.post('/dodo', validateDodoWebhookSignature, asyncHandler(async (req: Request, res: Response) => {
   try {
-    // Verify webhook signature using Stripe's built-in verification
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-
-    // Additional custom HMAC verification for enhanced security
-    const payload = JSON.stringify(req.body);
-    const sigElements = sig.split(',');
-    let stripeSignature = '';
-
-    for (const element of sigElements) {
-      if (element.startsWith('v1=')) {
-        stripeSignature = element.substring(3);
-        break;
-      }
-    }
-
-    if (!verifyHmacSignature(payload, stripeSignature, webhookSecret)) {
-      logger.error('Custom HMAC verification failed', {
-        ip: req.ip,
-        eventType: event?.type,
-      });
-      return res.status(400).json({
-        success: false,
-        error: 'Signature verification failed',
-      });
-    }
-
-  } catch (err) {
-    const error = err as Error;
-    logger.error('Webhook signature verification failed', {
-      error: error.message,
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
-
-    // Don't reveal specific error details
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid signature',
-    });
-  }
-
-  try {
-    // Handle the webhook event
-    await BillingService.handleWebhookEvent(event);
-
-    // Log successful webhook processing
-    logger.info('Webhook processed successfully', {
-      eventType: event.type,
-      eventId: event.id,
-    });
-
-    const response: ApiResponse = {
-      success: true,
-      message: 'Webhook processed successfully',
-    };
-
-    res.json(response);
+    // Delegate to the webhook handler
+    await dodoWebhookHandler.handleWebhook(req, res);
   } catch (error) {
-    logger.error('Webhook processing failed', {
-      error: (error as Error).message,
-      eventType: event.type,
-      eventId: event.id,
-    });
-
-    // Return 200 to prevent Stripe from retrying
-    // Log the error for manual investigation
-    res.status(200).json({
+    logger.error('Dodo webhook handling failed:', error);
+    res.status(500).json({
       success: false,
-      error: 'Webhook processing failed',
+      error: 'Webhook handling failed',
     });
   }
+}));
+
+// Legacy Stripe webhook endpoint (for migration period)
+router.post('/stripe', asyncHandler(async (req: Request, res: Response) => {
+  logger.warn('Received Stripe webhook - should be migrated to Dodo Payments', {
+    ip: req.ip,
+    eventType: req.body?.type,
+  });
+
+  // Return success to prevent Stripe from retrying
+  res.status(200).json({
+    success: true,
+    message: 'Stripe webhooks are deprecated - please use Dodo Payments',
+  });
 }));
 
 // POST /api/webhooks/test
@@ -162,38 +103,35 @@ router.post('/test', asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  // Create a mock Stripe event for testing
-  const mockEvent: Stripe.Event = {
+  // Create a mock Dodo event for testing
+  const mockEvent = {
     id: `evt_test_${Date.now()}`,
-    object: 'event',
-    api_version: '2023-10-16',
-    created: Math.floor(Date.now() / 1000),
+    type: eventType,
     data: {
       object: data || {},
     },
+    created: Math.floor(Date.now() / 1000),
     livemode: false,
-    pending_webhooks: 1,
-    request: {
-      id: null,
-      idempotency_key: null,
-    },
-    type: eventType,
   };
 
+  // Create a mock request object
+  const mockReq = {
+    ...req,
+    body: mockEvent,
+    headers: {
+      ...req.headers,
+      'dodo-signature': 'test_signature',
+    },
+  } as Request;
+
   try {
-    await BillingService.handleWebhookEvent(mockEvent);
+    await dodoWebhookHandler.handleWebhook(mockReq, res);
 
     logger.info('Test webhook processed successfully', {
       eventType: mockEvent.type,
       eventId: mockEvent.id,
     });
 
-    const response: ApiResponse = {
-      success: true,
-      message: 'Test webhook processed successfully',
-    };
-
-    res.json(response);
   } catch (error) {
     logger.error('Test webhook processing failed', {
       error: (error as Error).message,
@@ -214,7 +152,8 @@ router.get('/health', asyncHandler(async (req: Request, res: Response) => {
     data: {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      webhookSecret: !!stripeConfig.webhookSecret,
+      dodoWebhookSecret: !!process.env.DODO_WEBHOOK_SECRET,
+      environment: process.env.DODO_ENVIRONMENT || 'sandbox',
     },
     message: 'Webhook endpoint is healthy',
   };

@@ -18,7 +18,19 @@
       "Bash(findstr:*)",
       "Bash(bandit:*)",
       "Bash(safety check:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.dodopayments.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:atlas.dodopayments.com)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(set PYTHONIOENCODING=utf-8)",
+      "Bash(chcp 65001)",
+      "Bash(npm run:*)",
+      "Bash(for i in {1..5})",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
