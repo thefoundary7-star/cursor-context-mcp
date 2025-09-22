@@ -1,0 +1,210 @@
+# Artillery Load Testing Configuration for FileBridge Production
+# This configuration tests various endpoints under load conditions
+
+config:
+  target: 'https://your-domain.com'
+  phases:
+    # Warm-up phase
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm-up"
+    
+    # Ramp-up phase
+    - duration: 120
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp-up"
+    
+    # Sustained load phase
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load"
+    
+    # Peak load phase
+    - duration: 180
+      arrivalRate: 100
+      name: "Peak load"
+    
+    # Cool-down phase
+    - duration: 60
+      arrivalRate: 10
+      name: "Cool-down"
+
+  # Global settings
+  http:
+    timeout: 30
+    pool: 10
+  
+  # Environment variables
+  environments:
+    staging:
+      target: 'https://staging.filebridge.com'
+    production:
+      target: 'https://app.filebridge.com'
+
+  # Plugins
+  plugins:
+    metrics-by-endpoint: {}
+    publish-metrics: {}
+
+  # Custom metrics
+  ensure:
+    thresholds:
+      - http.response_time.p95: 2000
+      - http.response_time.p99: 5000
+      - http.codes.200: 0.95
+      - http.codes.4xx: 0.05
+      - http.codes.5xx: 0.01
+
+# Test scenarios
+scenarios:
+  # User registration flow
+  - name: "User Registration Flow"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/register-free"
+          json:
+            email: "{{ $randomString() }}@test.com"
+            name: "{{ $randomString() }}"
+            company: "{{ $randomString() }}"
+          capture:
+            - json: "$.userId"
+              as: "userId"
+          expect:
+            - statusCode: 200
+            - hasProperty: "userId"
+      
+      - get:
+          url: "/api/user/{{ userId }}"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 401]
+
+  # License activation flow
+  - name: "License Activation Flow"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/license/activate"
+          json:
+            licenseKey: "FB-PRO-{{ $randomString(8) }}-{{ $randomString(8) }}-{{ $randomString(8) }}-{{ $randomString(8) }}"
+            serverId: "server-{{ $randomString() }}"
+            serverName: "Test Server {{ $randomString() }}"
+            serverVersion: "1.0.0"
+          expect:
+            - statusCode: [200, 400, 401]
+
+  # Webhook processing
+  - name: "Webhook Processing"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/webhooks/dodo"
+          headers:
+            dodo-signature: "v1={{ $randomString(64) }}"
+            webhook-id: "evt_{{ $randomString() }}"
+            webhook-timestamp: "{{ $timestamp }}"
+          json:
+            id: "evt_{{ $randomString() }}"
+            type: "subscription.created"
+            data:
+              object:
+                id: "sub_{{ $randomString() }}"
+                customer_id: "cust_{{ $randomString() }}"
+                customer_email: "{{ $randomString() }}@test.com"
+                product_id: "prod_pro_monthly"
+                status: "active"
+                current_period_start: "{{ $timestamp }}"
+                current_period_end: "{{ $timestamp }}"
+                amount: 1900
+                currency: "USD"
+            created: "{{ $timestamp }}"
+            livemode: false
+          expect:
+            - statusCode: [200, 400, 401]
+
+  # Email delivery simulation
+  - name: "Email Delivery Simulation"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/email/send-license-key"
+          json:
+            to: "{{ $randomString() }}@test.com"
+            customerName: "{{ $randomString() }}"
+            licenseKey: "FB-PRO-{{ $randomString(8) }}-{{ $randomString(8) }}-{{ $randomString(8) }}-{{ $randomString(8) }}"
+            plan: "PRO"
+            subscriptionId: "sub_{{ $randomString() }}"
+            expiresAt: "{{ $timestamp }}"
+            downloadUrl: "https://releases.filebridge.com/latest"
+            supportEmail: "support@filebridge.com"
+          expect:
+            - statusCode: [200, 400, 500]
+
+  # Database operations
+  - name: "Database Operations"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/users"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 401]
+      
+      - get:
+          url: "/api/licenses"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 401]
+      
+      - get:
+          url: "/api/subscriptions"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 401]
+
+  # Analytics and monitoring
+  - name: "Analytics and Monitoring"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/analytics/event"
+          json:
+            userId: "user_{{ $randomString() }}"
+            licenseId: "lic_{{ $randomString() }}"
+            eventType: "REQUEST_COUNT"
+            eventData:
+              count: 1
+              timestamp: "{{ $timestamp }}"
+            timestamp: "{{ $timestamp }}"
+          expect:
+            - statusCode: [200, 400, 401]
+      
+      - get:
+          url: "/api/analytics/usage"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 401]
+
+# Custom functions for test data generation
+functions:
+  randomString: |
+    function(length = 8) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+  
+  timestamp: |
+    function() {
+      return Math.floor(Date.now() / 1000);
+    }

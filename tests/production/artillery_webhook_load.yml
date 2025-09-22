@@ -1,0 +1,199 @@
+# Artillery Webhook Load Testing Configuration
+# This configuration specifically tests webhook processing under high load
+
+config:
+  target: 'https://your-domain.com'
+  phases:
+    # Webhook-specific load phases
+    - duration: 30
+      arrivalRate: 10
+      name: "Webhook warm-up"
+    
+    - duration: 120
+      arrivalRate: 20
+      rampTo: 100
+      name: "Webhook ramp-up"
+    
+    - duration: 300
+      arrivalRate: 100
+      name: "Sustained webhook load"
+    
+    - duration: 180
+      arrivalRate: 200
+      name: "Peak webhook load"
+    
+    - duration: 60
+      arrivalRate: 50
+      name: "Webhook cool-down"
+
+  http:
+    timeout: 60
+    pool: 20
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 5000
+      - http.response_time.p99: 10000
+      - http.codes.200: 0.90
+      - http.codes.4xx: 0.08
+      - http.codes.5xx: 0.02
+
+scenarios:
+  # Subscription created webhooks
+  - name: "Subscription Created Webhooks"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/webhooks/dodo"
+          headers:
+            dodo-signature: "v1={{ $randomString(64) }}"
+            webhook-id: "evt_sub_created_{{ $randomString() }}"
+            webhook-timestamp: "{{ $timestamp }}"
+          json:
+            id: "evt_sub_created_{{ $randomString() }}"
+            type: "subscription.created"
+            data:
+              object:
+                id: "sub_{{ $randomString() }}"
+                customer_id: "cust_{{ $randomString() }}"
+                customer_email: "{{ $randomString() }}@test.com"
+                customer_name: "{{ $randomString() }}"
+                product_id: "prod_pro_monthly"
+                product_name: "FileBridge Pro"
+                status: "active"
+                current_period_start: "{{ $timestamp }}"
+                current_period_end: "{{ $timestamp }}"
+                amount: 1900
+                currency: "USD"
+            created: "{{ $timestamp }}"
+            livemode: false
+          expect:
+            - statusCode: [200, 400, 401]
+
+  # Subscription activated webhooks
+  - name: "Subscription Activated Webhooks"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/webhooks/dodo"
+          headers:
+            dodo-signature: "v1={{ $randomString(64) }}"
+            webhook-id: "evt_sub_activated_{{ $randomString() }}"
+            webhook-timestamp: "{{ $timestamp }}"
+          json:
+            id: "evt_sub_activated_{{ $randomString() }}"
+            type: "subscription.activated"
+            data:
+              object:
+                id: "sub_{{ $randomString() }}"
+                customer_id: "cust_{{ $randomString() }}"
+                customer_email: "{{ $randomString() }}@test.com"
+                product_id: "prod_enterprise_monthly"
+                product_name: "FileBridge Enterprise"
+                status: "active"
+                current_period_start: "{{ $timestamp }}"
+                current_period_end: "{{ $timestamp }}"
+                amount: 9900
+                currency: "USD"
+            created: "{{ $timestamp }}"
+            livemode: false
+          expect:
+            - statusCode: [200, 400, 401]
+
+  # Payment succeeded webhooks
+  - name: "Payment Succeeded Webhooks"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/webhooks/dodo"
+          headers:
+            dodo-signature: "v1={{ $randomString(64) }}"
+            webhook-id: "evt_payment_succeeded_{{ $randomString() }}"
+            webhook-timestamp: "{{ $timestamp }}"
+          json:
+            id: "evt_payment_succeeded_{{ $randomString() }}"
+            type: "payment.succeeded"
+            data:
+              object:
+                id: "pay_{{ $randomString() }}"
+                subscription_id: "sub_{{ $randomString() }}"
+                customer_id: "cust_{{ $randomString() }}"
+                amount: 1900
+                currency: "USD"
+                status: "succeeded"
+                paid_at: "{{ $timestamp }}"
+            created: "{{ $timestamp }}"
+            livemode: false
+          expect:
+            - statusCode: [200, 400, 401]
+
+  # Payment failed webhooks
+  - name: "Payment Failed Webhooks"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/webhooks/dodo"
+          headers:
+            dodo-signature: "v1={{ $randomString(64) }}"
+            webhook-id: "evt_payment_failed_{{ $randomString() }}"
+            webhook-timestamp: "{{ $timestamp }}"
+          json:
+            id: "evt_payment_failed_{{ $randomString() }}"
+            type: "payment.failed"
+            data:
+              object:
+                id: "pay_{{ $randomString() }}"
+                subscription_id: "sub_{{ $randomString() }}"
+                customer_id: "cust_{{ $randomString() }}"
+                amount: 1900
+                currency: "USD"
+                status: "failed"
+                failure_reason: "insufficient_funds"
+                failed_at: "{{ $timestamp }}"
+            created: "{{ $timestamp }}"
+            livemode: false
+          expect:
+            - statusCode: [200, 400, 401]
+
+  # Subscription cancelled webhooks
+  - name: "Subscription Cancelled Webhooks"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/webhooks/dodo"
+          headers:
+            dodo-signature: "v1={{ $randomString(64) }}"
+            webhook-id: "evt_sub_cancelled_{{ $randomString() }}"
+            webhook-timestamp: "{{ $timestamp }}"
+          json:
+            id: "evt_sub_cancelled_{{ $randomString() }}"
+            type: "subscription.cancelled"
+            data:
+              object:
+                id: "sub_{{ $randomString() }}"
+                customer_id: "cust_{{ $randomString() }}"
+                customer_email: "{{ $randomString() }}@test.com"
+                product_id: "prod_pro_monthly"
+                status: "cancelled"
+                canceled_at: "{{ $timestamp }}"
+                cancellation_reason: "user_requested"
+            created: "{{ $timestamp }}"
+            livemode: false
+          expect:
+            - statusCode: [200, 400, 401]
+
+functions:
+  randomString: |
+    function(length = 8) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+  
+  timestamp: |
+    function() {
+      return Math.floor(Date.now() / 1000);
+    }

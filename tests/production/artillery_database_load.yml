@@ -1,0 +1,249 @@
+# Artillery Database Load Testing Configuration
+# This configuration tests database operations under high load
+
+config:
+  target: 'https://your-domain.com'
+  phases:
+    # Database-specific load phases
+    - duration: 30
+      arrivalRate: 5
+      name: "Database warm-up"
+    
+    - duration: 120
+      arrivalRate: 10
+      rampTo: 50
+      name: "Database ramp-up"
+    
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained database load"
+    
+    - duration: 180
+      arrivalRate: 100
+      name: "Peak database load"
+    
+    - duration: 60
+      arrivalRate: 20
+      name: "Database cool-down"
+
+  http:
+    timeout: 30
+    pool: 15
+
+  ensure:
+    thresholds:
+      - http.response_time.p95: 3000
+      - http.response_time.p99: 8000
+      - http.codes.200: 0.95
+      - http.codes.4xx: 0.04
+      - http.codes.5xx: 0.01
+
+scenarios:
+  # User creation operations
+  - name: "User Creation Operations"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/users"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          json:
+            email: "{{ $randomString() }}@test.com"
+            name: "{{ $randomString() }}"
+            company: "{{ $randomString() }}"
+            tier: "FREE"
+          expect:
+            - statusCode: [200, 201, 400, 401]
+      
+      - post:
+          url: "/api/users"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          json:
+            email: "{{ $randomString() }}@test.com"
+            name: "{{ $randomString() }}"
+            company: "{{ $randomString() }}"
+            tier: "PRO"
+          expect:
+            - statusCode: [200, 201, 400, 401]
+
+  # User lookup operations
+  - name: "User Lookup Operations"
+    weight: 25
+    flow:
+      - get:
+          url: "/api/users/{{ $randomString() }}"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+      
+      - get:
+          url: "/api/users/email/{{ $randomString() }}@test.com"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+      
+      - get:
+          url: "/api/users"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          qs:
+            page: "{{ $randomInt(1, 10) }}"
+            limit: "{{ $randomInt(10, 100) }}"
+          expect:
+            - statusCode: [200, 401]
+
+  # License operations
+  - name: "License Operations"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/licenses"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          json:
+            userId: "user_{{ $randomString() }}"
+            tier: "PRO"
+            maxServers: 5
+            expiresAt: "{{ $futureTimestamp }}"
+          expect:
+            - statusCode: [200, 201, 400, 401]
+      
+      - get:
+          url: "/api/licenses/{{ $randomString() }}"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+      
+      - get:
+          url: "/api/licenses/user/{{ $randomString() }}"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+
+  # Subscription operations
+  - name: "Subscription Operations"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/subscriptions"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          json:
+            userId: "user_{{ $randomString() }}"
+            dodoSubscriptionId: "sub_{{ $randomString() }}"
+            dodoCustomerId: "cust_{{ $randomString() }}"
+            dodoProductId: "prod_pro_monthly"
+            tier: "PRO"
+            status: "active"
+            currentPeriodStart: "{{ $timestamp }}"
+            currentPeriodEnd: "{{ $futureTimestamp }}"
+            amount: 1900
+            currency: "USD"
+          expect:
+            - statusCode: [200, 201, 400, 401]
+      
+      - get:
+          url: "/api/subscriptions/{{ $randomString() }}"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+      
+      - get:
+          url: "/api/subscriptions/user/{{ $randomString() }}"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+
+  # Payment operations
+  - name: "Payment Operations"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/payments"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          json:
+            dodoPaymentId: "pay_{{ $randomString() }}"
+            subscriptionId: "sub_{{ $randomString() }}"
+            userId: "user_{{ $randomString() }}"
+            amount: 1900
+            currency: "USD"
+            status: "succeeded"
+            paidAt: "{{ $timestamp }}"
+          expect:
+            - statusCode: [200, 201, 400, 401]
+      
+      - get:
+          url: "/api/payments/{{ $randomString() }}"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode: [200, 404, 401]
+
+  # Analytics operations
+  - name: "Analytics Operations"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/analytics/event"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          json:
+            userId: "user_{{ $randomString() }}"
+            licenseId: "lic_{{ $randomString() }}"
+            eventType: "REQUEST_COUNT"
+            eventData:
+              count: "{{ $randomInt(1, 100) }}"
+              timestamp: "{{ $timestamp }}"
+            timestamp: "{{ $timestamp }}"
+          expect:
+            - statusCode: [200, 201, 400, 401]
+      
+      - get:
+          url: "/api/analytics/usage"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          qs:
+            userId: "user_{{ $randomString() }}"
+            startDate: "{{ $pastTimestamp }}"
+            endDate: "{{ $timestamp }}"
+          expect:
+            - statusCode: [200, 401]
+
+functions:
+  randomString: |
+    function(length = 8) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+  
+  randomInt: |
+    function(min = 1, max = 100) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+  
+  timestamp: |
+    function() {
+      return Math.floor(Date.now() / 1000);
+    }
+  
+  futureTimestamp: |
+    function() {
+      return Math.floor((Date.now() + 30 * 24 * 60 * 60 * 1000) / 1000); // 30 days from now
+    }
+  
+  pastTimestamp: |
+    function() {
+      return Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000); // 7 days ago
+    }
