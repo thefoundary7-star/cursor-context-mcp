@@ -2,11 +2,19 @@
 
 A production-ready MCP (Model Context Protocol) server with comprehensive directory configuration management for commercial use. Features user-friendly configuration, security controls, and audit logging.
 
-## 🆕 New: Directory Configuration System
+## 🆕 Enhanced MCP Server v2.0.0
 
-The MCP server now includes a powerful directory configuration system that allows users to easily control which folders the server can access without editing Claude Desktop configurations.
+The MCP server now includes powerful enhanced features for code analysis, security auditing, performance monitoring, and intelligent file management.
 
-### Key Features
+### 🚀 New Enhanced Features
+- **Code Indexing System**: Automatic symbol discovery and reference tracking
+- **Real-time File Monitoring**: Auto-reindexing when files are modified
+- **Advanced Git Integration**: Comprehensive git tools for repository analysis
+- **Security Auditing**: Automated security scanning and vulnerability detection
+- **Performance Monitoring**: Detailed performance metrics and optimization tools
+- **Intelligent Caching**: Optimized caching for improved performance
+
+### 📁 Directory Configuration System
 - **User-friendly Configuration**: JSON-based configuration in `~/.mcp/config.json`
 - **CLI Management**: Easy command-line tools for configuration
 - **Auto-reload**: Configuration changes are automatically detected and applied
@@ -52,9 +60,41 @@ Update your Claude Desktop configuration:
 
 ## 📚 Documentation
 
+- **[Enhanced Features Documentation](enhanced_features_documentation.md)** - Complete guide to all enhanced features
 - **[Directory Configuration Guide](MCP_DIRECTORY_CONFIGURATION_GUIDE.md)** - Complete guide to the configuration system
 - **[API Documentation](API_DOCUMENTATION.md)** - MCP server API reference
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+- **[Testing Guide](README_TESTING.md)** - Comprehensive testing documentation
+- **[Examples](examples/README.md)** - Usage examples and best practices
+
+## 🧪 Testing & Examples
+
+### Comprehensive Test Suite
+- **Unit Tests**: `tests/test_enhanced_features.py` - Tests for all enhanced features
+- **Integration Tests**: `tests/test_integration_workflows.py` - End-to-end workflow tests
+- **Security Tests**: Built-in security auditing and vulnerability testing
+- **Performance Tests**: Benchmarking and optimization testing
+
+### Example Scripts
+- **Enhanced Features Demo**: `examples/enhanced_features_examples.py` - Complete feature demonstration
+- **Performance Optimization**: `examples/performance_optimization_examples.py` - Performance tuning examples
+- **Security Best Practices**: `examples/security_best_practices_examples.py` - Security usage patterns
+
+### Running Tests
+```bash
+# Run all tests
+python run_tests.py --full
+
+# Run specific test types
+python run_tests.py --unit
+python run_tests.py --integration
+python run_tests.py --security
+
+# Run examples
+python examples/enhanced_features_examples.py
+python examples/performance_optimization_examples.py
+python examples/security_best_practices_examples.py
+```
 
 ---
 

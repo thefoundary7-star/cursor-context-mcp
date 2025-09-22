@@ -1,0 +1,165 @@
+{
+  "config_version": "2.1.0",
+  "last_modified": "2024-01-15T10:00:00.000Z",
+  "enabled": true,
+  "watched_directories": [
+    {
+      "path": "/path/to/your/python/project",
+      "enabled": true,
+      "max_file_size": "5MB",
+      "exclude_patterns": [
+        "*.pyc",
+        "__pycache__",
+        "*.egg-info",
+        ".pytest_cache",
+        ".coverage",
+        "venv",
+        "env",
+        ".venv",
+        ".env",
+        "node_modules",
+        ".git"
+      ],
+      "include_gitignore": true,
+      "last_accessed": null
+    }
+  ],
+  "global_exclude_patterns": [
+    ".env*",
+    "node_modules",
+    ".git",
+    "__pycache__",
+    "*.pyc",
+    "*.log",
+    "*.tmp",
+    "*.temp",
+    ".DS_Store",
+    "Thumbs.db",
+    "*.swp",
+    "*.swo",
+    "*.egg-info",
+    ".pytest_cache",
+    ".coverage",
+    "venv",
+    "env",
+    ".venv",
+    "dist",
+    "build",
+    "*.egg"
+  ],
+  "max_file_size": "5MB",
+  "audit_logging": true,
+  "security_mode": "moderate",
+  "performance": {
+    "max_files_per_operation": 2000,
+    "max_search_results": 1000,
+    "max_file_size_mb": 5,
+    "operation_timeout": 300,
+    "cache_size_file": 1000,
+    "cache_size_symbol": 2000,
+    "cache_size_git": 200,
+    "cache_ttl_seconds": 600,
+    "indexing_batch_size": 200,
+    "indexing_parallel_workers": 4,
+    "monitoring_frequency": 0.5,
+    "memory_limit_mb": 2048,
+    "cpu_limit_percent": 80
+  },
+  "features": {
+    "code_indexing": true,
+    "real_time_monitoring": true,
+    "git_integration": true,
+    "security_scanning": true,
+    "performance_monitoring": true,
+    "advanced_search": true,
+    "symbol_analysis": true,
+    "reference_tracking": true,
+    "test_discovery": true,
+    "audit_logging": true,
+    "usage_tracking": true,
+    "progress_indicators": true,
+    "error_recovery": true,
+    "auto_cleanup": true
+  },
+  "logging": {
+    "level": "INFO",
+    "file_path": "~/.mcp/mcp_server.log",
+    "max_file_size_mb": 10,
+    "backup_count": 5,
+    "format_string": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "include_performance_metrics": true,
+    "include_usage_statistics": true,
+    "log_rotation": true,
+    "debug_mode": false
+  },
+  "security": {
+    "mode": "moderate",
+    "scan_file_extensions": [
+      ".py",
+      ".pyi",
+      ".pyx"
+    ],
+    "scan_max_file_size_mb": 2,
+    "scan_timeout_seconds": 30,
+    "audit_sensitive_operations": true,
+    "block_system_directories": true,
+    "require_authentication": false,
+    "api_rate_limit": 200
+  },
+  "indexing": {
+    "auto_index_on_startup": true,
+    "index_file_extensions": [
+      ".py",
+      ".pyi",
+      ".pyx",
+      ".pyw"
+    ],
+    "skip_binary_files": true,
+    "skip_large_files": true,
+    "large_file_threshold_mb": 1,
+    "index_comments": true,
+    "index_strings": false,
+    "max_symbols_per_file": 2000,
+    "index_depth_limit": 15
+  },
+  "monitoring": {
+    "enabled": true,
+    "watch_subdirectories": true,
+    "debounce_seconds": 0.3,
+    "max_watched_directories": 100,
+    "ignore_patterns": [
+      "*.tmp",
+      "*.temp",
+      "*.log",
+      "*.cache",
+      "*.pyc",
+      "__pycache__",
+      ".git",
+      "node_modules",
+      ".vscode",
+      ".idea",
+      "venv",
+      "env",
+      ".venv",
+      ".pytest_cache",
+      ".coverage"
+    ],
+    "health_check_interval": 30,
+    "performance_report_interval": 300
+  },
+  "installation_info": {
+    "installed_at": "2024-01-15T10:00:00.000Z",
+    "system_info": {
+      "platform": "Linux",
+      "python_version": "3.11.0"
+    },
+    "features_installed": [
+      "code_indexing",
+      "real_time_monitoring",
+      "git_integration",
+      "security_scanning",
+      "performance_monitoring"
+    ],
+    "installer_version": "2.1.0"
+  }
+}

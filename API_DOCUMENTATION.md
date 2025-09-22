@@ -1,9 +1,23 @@
-# API Documentation
+# Enhanced MCP Server API Documentation
+
+## Overview
+
+The Enhanced MCP Server v2.0.0 provides a comprehensive set of tools for code analysis, git integration, security auditing, performance monitoring, and file management. This document covers all available MCP tools and their usage.
 
 ## Base URL
 ```
 https://yourdomain.com/api
 ```
+
+## Enhanced Features Overview
+
+### 🚀 New in v2.0.0
+- **Code Indexing System**: Automatic symbol discovery and reference tracking
+- **Real-time File Monitoring**: Auto-reindexing when files are modified  
+- **Advanced Git Integration**: Comprehensive git tools for repository analysis
+- **Security Auditing**: Automated security scanning and vulnerability detection
+- **Performance Monitoring**: Detailed performance metrics and optimization tools
+- **Intelligent Caching**: Optimized caching for improved performance
 
 ## Authentication
 
@@ -46,6 +60,254 @@ All API responses follow this format:
 | 409 | Conflict - Resource already exists |
 | 429 | Too Many Requests - Rate limit exceeded |
 | 500 | Internal Server Error |
+
+---
+
+## Enhanced MCP Tools
+
+### Code Analysis Tools
+
+#### search_symbols
+Search for code symbols (functions, classes, variables) across the codebase.
+
+**Parameters:**
+- `query` (str): Search query
+- `directory` (str): Directory to search (default: ".")
+- `symbol_type` (str, optional): Filter by symbol type ("function", "class", "variable", "import")
+- `auto_index` (bool): Automatically index files if needed (default: True)
+- `fuzzy` (bool): Enable fuzzy matching (default: False)
+- `file_extensions` (list, optional): File extensions to include
+
+**Returns:**
+```json
+{
+  "success": true,
+  "symbols": [
+    {
+      "name": "create_user",
+      "type": "function",
+      "file_path": "/path/to/user.py",
+      "line_number": 15,
+      "definition": "def create_user(name: str) -> User:",
+      "docstring": "Create a new user with the given name."
+    }
+  ],
+  "total_found": 1,
+  "search_time": 0.05
+}
+```
+
+#### find_references
+Find all references to a specific symbol across the codebase.
+
+**Parameters:**
+- `symbol_name` (str): Name of the symbol to find references for
+- `directory` (str): Directory to search (default: ".")
+- `file_extensions` (list, optional): File extensions to include
+- `context_lines` (int): Number of context lines to include (default: 2)
+
+**Returns:**
+```json
+{
+  "success": true,
+  "symbol_name": "create_user",
+  "references": [
+    {
+      "symbol_name": "create_user",
+      "file_path": "/path/to/main.py",
+      "line_number": 25,
+      "context": "user = create_user('John')",
+      "ref_type": "call"
+    }
+  ],
+  "total_found": 1
+}
+```
+
+### Git Integration Tools
+
+#### get_git_diff
+Get git diff for specific files or entire repository.
+
+**Parameters:**
+- `directory` (str): Directory path (default: ".")
+- `file_path` (str, optional): Specific file to diff
+- `staged` (bool): Show staged changes (default: False)
+- `unstaged` (bool): Show unstaged changes (default: True)
+
+**Returns:**
+```json
+{
+  "success": true,
+  "diff": "diff --git a/file.py b/file.py\n+new line",
+  "files_changed": 1
+}
+```
+
+#### get_commit_history
+Get recent commit history with filtering options.
+
+**Parameters:**
+- `directory` (str): Directory path (default: ".")
+- `limit` (int): Number of commits to return (default: 10)
+- `file_path` (str, optional): Filter commits by file
+- `author` (str, optional): Filter commits by author
+- `since` (str, optional): Filter commits since date
+- `until` (str, optional): Filter commits until date
+
+**Returns:**
+```json
+{
+  "success": true,
+  "commits": [
+    {
+      "hash": "abc123",
+      "author": "John Doe",
+      "date": "2024-01-01T12:00:00Z",
+      "message": "Add user management feature",
+      "files_changed": 3
+    }
+  ],
+  "total_commits": 1
+}
+```
+
+### Security Tools
+
+#### security_audit
+Perform comprehensive security audit on a file.
+
+**Parameters:**
+- `file_path` (str): Path to the file to audit
+
+**Returns:**
+```json
+{
+  "success": true,
+  "issues": [
+    {
+      "type": "hardcoded_password",
+      "line": 15,
+      "description": "Hardcoded password found",
+      "severity": "high",
+      "suggestion": "Use environment variables or secure configuration"
+    }
+  ],
+  "total_issues": 1,
+  "security_score": 7.5
+}
+```
+
+#### get_security_summary
+Get security audit summary and statistics.
+
+**Returns:**
+```json
+{
+  "success": true,
+  "summary": {
+    "total_audits": 25,
+    "issues_found": 3,
+    "high_severity": 1,
+    "medium_severity": 2,
+    "low_severity": 0,
+    "read_only_mode": false,
+    "last_audit": "2024-01-01T12:00:00Z"
+  }
+}
+```
+
+### Performance Monitoring Tools
+
+#### performance_stats
+Get comprehensive performance statistics for all MCP operations.
+
+**Returns:**
+```json
+{
+  "success": true,
+  "statistics": {
+    "operation_times": {
+      "search_symbols": 0.05,
+      "find_references": 0.12,
+      "get_git_status": 0.03
+    },
+    "operation_counts": {
+      "search_symbols": 25,
+      "find_references": 10,
+      "get_git_status": 5
+    },
+    "average_times": {
+      "search_symbols": 0.05,
+      "find_references": 0.12
+    },
+    "memory_usage": 1048576,
+    "uptime": 3600
+  }
+}
+```
+
+#### cache_stats
+Get cache statistics and performance metrics.
+
+**Returns:**
+```json
+{
+  "success": true,
+  "cache_stats": {
+    "file_cache": {
+      "hits": 150,
+      "misses": 25,
+      "hit_rate": 0.857,
+      "size": 1048576
+    },
+    "symbol_cache": {
+      "hits": 300,
+      "misses": 50,
+      "hit_rate": 0.857,
+      "size": 2097152
+    }
+  }
+}
+```
+
+### File Monitoring Tools
+
+#### start_file_monitoring
+Start real-time file monitoring for automatic code indexing.
+
+**Returns:**
+```json
+{
+  "success": true,
+  "monitoring_active": true,
+  "watched_directories": ["/path/to/project"],
+  "message": "File monitoring started"
+}
+```
+
+#### get_recent_changes
+Get list of recently modified files with change tracking information.
+
+**Parameters:**
+- `hours` (int): Number of hours to look back (default: 24)
+
+**Returns:**
+```json
+{
+  "success": true,
+  "changes": [
+    {
+      "file_path": "/path/to/file.py",
+      "change_type": "modified",
+      "timestamp": 1704110400,
+      "formatted_time": "2024-01-01 12:00:00",
+      "file_size": 1024
+    }
+  ],
+  "total_changes": 1
+}
+```
 
 ---
 

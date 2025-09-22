@@ -566,20 +566,97 @@ class MCPConfigManager:
             return False
     
     def _validate_config(self):
-        """Validate the current configuration"""
+        """Validate the current configuration with comprehensive checks"""
         if not self.config:
             raise ValueError("No configuration loaded")
         
+        validation_errors = []
+        
         # Validate directories
-        for dir_config in self.config.watched_directories:
-            self._validate_directory_path(dir_config.path)
+        for i, dir_config in enumerate(self.config.watched_directories):
+            try:
+                self._validate_directory_path(dir_config.path)
+            except Exception as e:
+                validation_errors.append(f"Directory {i+1} ({dir_config.path}): {str(e)}")
         
         # Validate security mode
         if self.config.security_mode not in ["strict", "moderate", "permissive"]:
-            raise ValueError(f"Invalid security mode: {self.config.security_mode}")
+            validation_errors.append(f"Invalid security mode: {self.config.security_mode}. Must be 'strict', 'moderate', or 'permissive'")
         
         # Validate file size format
-        self._parse_file_size(self.config.max_file_size)
+        try:
+            self._parse_file_size(self.config.max_file_size)
+        except Exception as e:
+            validation_errors.append(f"Invalid max_file_size format: {str(e)}")
+        
+        # Validate exclude patterns
+        for i, pattern in enumerate(self.config.global_exclude_patterns):
+            if not isinstance(pattern, str) or not pattern.strip():
+                validation_errors.append(f"Exclude pattern {i+1} is empty or invalid: {pattern}")
+        
+        # Validate directory-specific configurations
+        for i, dir_config in enumerate(self.config.watched_directories):
+            # Validate max_file_size for each directory
+            try:
+                self._parse_file_size(dir_config.max_file_size)
+            except Exception as e:
+                validation_errors.append(f"Directory {i+1} max_file_size invalid: {str(e)}")
+            
+            # Validate exclude patterns for each directory
+            for j, pattern in enumerate(dir_config.exclude_patterns):
+                if not isinstance(pattern, str) or not pattern.strip():
+                    validation_errors.append(f"Directory {i+1} exclude pattern {j+1} is empty or invalid: {pattern}")
+        
+        # Validate configuration version
+        if not self.config.config_version:
+            validation_errors.append("Configuration version is required")
+        
+        # Validate boolean fields
+        if not isinstance(self.config.enabled, bool):
+            validation_errors.append("'enabled' must be a boolean value")
+        
+        if not isinstance(self.config.audit_logging, bool):
+            validation_errors.append("'audit_logging' must be a boolean value")
+        
+        # Check for duplicate directories
+        directory_paths = [Path(d.path).resolve() for d in self.config.watched_directories]
+        if len(directory_paths) != len(set(directory_paths)):
+            validation_errors.append("Duplicate directory paths found in configuration")
+        
+        # Validate directory accessibility during config load
+        for i, dir_config in enumerate(self.config.watched_directories):
+            if dir_config.enabled:
+                try:
+                    # Test directory accessibility
+                    test_path = Path(dir_config.path) / ".mcp_test"
+                    test_path.touch()
+                    test_path.unlink()
+                except Exception as e:
+                    validation_errors.append(f"Directory {i+1} ({dir_config.path}) is not accessible: {str(e)}")
+        
+        # Validate regex patterns in exclude patterns
+        for i, pattern in enumerate(self.config.global_exclude_patterns):
+            try:
+                # Test if pattern is a valid glob pattern
+                import fnmatch
+                fnmatch.fnmatch("test", pattern)
+            except Exception as e:
+                validation_errors.append(f"Global exclude pattern {i+1} is invalid: {pattern} - {str(e)}")
+        
+        # Check for reasonable limits
+        max_file_size_bytes = self._parse_file_size(self.config.max_file_size)
+        if max_file_size_bytes > 1024 * 1024 * 1024:  # 1GB
+            validation_errors.append("max_file_size is too large (>1GB). Consider using a smaller limit for security.")
+        
+        if len(self.config.watched_directories) > 50:
+            validation_errors.append("Too many watched directories (>50). Consider consolidating directories.")
+        
+        # Raise comprehensive error if any validation failed
+        if validation_errors:
+            error_message = "Configuration validation failed:\n" + "\n".join(f"  - {error}" for error in validation_errors)
+            raise ValueError(error_message)
+        
+        logger.info("Configuration validation passed successfully")
     
     def _validate_directory_path(self, path: str) -> bool:
         """Validate that a directory path is safe to access"""
