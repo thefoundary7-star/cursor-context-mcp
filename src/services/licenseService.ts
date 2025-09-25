@@ -104,6 +104,32 @@ export class LicenseService {
     allowedHardware?: string[];
   }> {
     try {
+      // DISABLE_LICENSE: Always return valid PRO license
+      if (process.env.DISABLE_LICENSE === 'true') {
+        logger.info('License validation bypassed - DISABLE_LICENSE=true');
+        return {
+          valid: true,
+          license: {
+            id: 'disabled-license',
+            licenseKey: 'DISABLED-PRO-LICENSE',
+            tier: 'PRO',
+            isActive: true,
+            expiresAt: null,
+            maxServers: 10,
+            plan: 'PRO'
+          } as any,
+          server: {
+            id: 'disabled-server',
+            serverId: validationData.serverId || 'disabled-server',
+            name: 'Disabled License Server',
+            version: '1.0.0',
+            isActive: true
+          } as any,
+          signature: 'disabled-signature',
+          serverTime: Date.now(),
+          allowedHardware: []
+        };
+      }
       // Generate server-side hardware fingerprint if not provided
       const serverHardwareFingerprint = validationData.hardwareFingerprint || generateHardwareFingerprint();
 

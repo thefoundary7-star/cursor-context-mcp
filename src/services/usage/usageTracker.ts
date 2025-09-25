@@ -33,6 +33,12 @@ export interface UsageResult {
 export class UsageTracker {
   static async trackMCPCall(licenseKey: string, operation: string): Promise<UsageResult> {
     try {
+      // DISABLE_LICENSE: Always allow unlimited usage
+      if (process.env.DISABLE_LICENSE === 'true') {
+        console.log('[DISABLE_LICENSE] Usage tracking bypassed - allowing unlimited usage');
+        return { allowed: true, remaining: 'unlimited' };
+      }
+
       const license = await prisma.license.findUnique({
         where: { licenseKey },
         include: { user: { include: { subscriptions: true } } }

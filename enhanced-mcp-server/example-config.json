@@ -1,0 +1,17 @@
+{
+  "allowedDirectories": ["."],
+  "maxFileSize": 10485760,
+  "enableFileWatching": false,
+  "enablePerformanceMonitoring": true,
+  "readOnlyMode": false,
+  "logLevel": "info",
+  "rateLimits": {
+    "maxRequestsPerMinute": 60,
+    "slowOperationThreshold": 5.0
+  },
+  "indexingOptions": {
+    "autoIndex": true,
+    "excludePatterns": ["node_modules/**", ".git/**", "dist/**"],
+    "includePatterns": ["**/*.ts", "**/*.js", "**/*.py"]
+  }
+}

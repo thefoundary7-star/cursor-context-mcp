@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "enhanced-filesystem": {
+      "command": "npx",
+      "args": ["@filebridge/enhanced-mcp-server", "--directories", "/path/to/your/projects"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

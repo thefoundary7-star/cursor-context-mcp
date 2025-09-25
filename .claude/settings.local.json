@@ -30,7 +30,14 @@
       "Bash(chcp 65001)",
       "Bash(npm run:*)",
       "Bash(for i in {1..5})",
-      "Bash(done)"
+      "Bash(done)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(powershell:*)",
+      "Bash(bash:*)",
+      "Bash(npm test)"
     ],
     "deny": [],
     "ask": []

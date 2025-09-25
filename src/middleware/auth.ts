@@ -137,6 +137,24 @@ export const validateLicense = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // DISABLE_LICENSE: Bypass license validation
+    if (process.env.DISABLE_LICENSE === 'true') {
+      console.log('[DISABLE_LICENSE] License validation bypassed - creating mock PRO license');
+      req.license = {
+        id: 'disabled-license',
+        licenseKey: 'DISABLED-PRO-LICENSE',
+        tier: 'PRO',
+        isActive: true,
+        expiresAt: null,
+        user: {
+          id: 'disabled-user',
+          email: 'disabled@example.com',
+          isActive: true
+        }
+      } as any;
+      return next();
+    }
+
     const { licenseKey } = req.body;
     
     if (!licenseKey) {

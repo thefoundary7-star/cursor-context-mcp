@@ -1,0 +1,147 @@
+{
+  "timestamp": "2025-09-25T13:37:02.759Z",
+  "sandboxDir": "/c/Users/manay/Desktop/cursor-context-mcp/mcp-sandbox",
+  "summary": {
+    "success": 0,
+    "warnings": 0,
+    "failures": 19,
+    "skipped": 0,
+    "total": 19,
+    "healthScore": 0
+  },
+  "details": [
+    {
+      "tool": "self_test",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "project_health_check",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "code_quality_metrics",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "refactoring_suggestions",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "documentation_coverage",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "analyze_dependencies",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "security_audit",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "check_vulnerabilities",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "license_compliance_check",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "run_tests",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "test_coverage_analysis",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "detect_test_framework",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "get_commit_history",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "get_branch_info",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "get_file_blame",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "find_commits_touching_file",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "ide_feedback_stream",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "ci_health_gate",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    },
+    {
+      "tool": "generate_project_report",
+      "status": "failure",
+      "reason": "Spawn error: spawn node ENOENT",
+      "hasData": false,
+      "dataSize": 0
+    }
+  ]
+}

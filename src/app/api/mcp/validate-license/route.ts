@@ -5,6 +5,19 @@ export async function POST(req: NextRequest) {
   try {
     const { license_key, operation } = await req.json();
 
+    // DISABLE_LICENSE: Always return valid response
+    if (process.env.DISABLE_LICENSE === 'true') {
+      console.log('[DISABLE_LICENSE] MCP license validation bypassed - returning PRO tier access');
+      return NextResponse.json({
+        success: true,
+        message: 'License valid (disabled for development)',
+        usage: {
+          remaining: 'unlimited',
+          resetTime: null
+        }
+      });
+    }
+
     if (!license_key) {
       return NextResponse.json({ error: 'License key required' }, { status: 400 });
     }
